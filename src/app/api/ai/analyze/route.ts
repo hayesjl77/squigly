@@ -117,6 +117,7 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
         }
 
         // Clean up analysis text (remove any trailing JSON or junk) - FIXED VERSION
+        // Fixed Vercel build - using split instead of regex flag
         const cleanAnalysis = analysisPart.trim().split('---FIXES---')[0].trim();
 
         return NextResponse.json({
