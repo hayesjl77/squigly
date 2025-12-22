@@ -43,6 +43,7 @@ export default function AuthHeader() {
 
     const handleSignOut = async () => {
         await supabaseBrowser.auth.signOut();
+        window.location.href = '/'; // Force redirect to login page
     };
 
     if (!user) return null;

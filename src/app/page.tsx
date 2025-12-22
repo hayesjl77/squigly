@@ -263,6 +263,7 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await supabaseBrowser.auth.signOut();
+    window.location.href = '/'; // Force redirect to login page
   };
 
   const handleProfileSave = async () => {
