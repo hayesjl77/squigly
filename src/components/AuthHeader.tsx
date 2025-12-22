@@ -58,35 +58,29 @@ export default function AuthHeader() {
 
     const handleManageBilling = async () => {
         if (isBillingLoading) return;
-
         setIsBillingLoading(true);
 
         try {
             const res = await fetch('/api/stripe/portal', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include', // Required to send Supabase auth cookies
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
             });
 
-            // IMPORTANT: Read the body ONLY ONCE
             const data = await res.json();
 
             if (!res.ok) {
-                // Handle specific status codes using the already-parsed data
                 if (res.status === 401) {
-                    alert('Session expired or unauthorized. Please log out and log back in.');
+                    alert('Session expired. Please log out and log back in.');
                     return;
                 }
                 throw new Error(data.error || 'Failed to open billing portal');
             }
 
             if (!data.url) {
-                throw new Error('No portal URL received from server');
+                throw new Error('No portal URL received');
             }
 
-            // Success: redirect to Stripe portal
             window.location.href = data.url;
         } catch (error: any) {
             console.error('Manage Billing error:', error);
@@ -95,10 +89,6 @@ export default function AuthHeader() {
             setIsBillingLoading(false);
         }
     };
-
-    if (!user) return null;
-
-    const isPaidPlan = subscription.status && subscription.status !== 'free';
 
     return (
         <header className="border-b border-gray-800 p-6">
@@ -138,65 +128,81 @@ export default function AuthHeader() {
                     </div>
                 </div>
 
-                {/* User Profile Dropdown */}
-                <div className="relative">
-                    <button
-                        onClick={() => setShowUserMenu(!showUserMenu)}
-                        className="flex items-center gap-3 px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition"
-                    >
-                        <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold">
-                            {user.email?.[0]?.toUpperCase() || '?'}
+                {/* Auth / User Section */}
+                <div className="flex items-center gap-4">
+                    {user ? (
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                className="flex items-center gap-3 px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition"
+                            >
+                                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold">
+                                    {user.email?.[0]?.toUpperCase() || '?'}
+                                </div>
+                                <span className="hidden sm:inline">{user.email || 'User'}</span>
+                            </button>
+
+                            {showUserMenu && (
+                                <div className="absolute right-0 mt-2 w-72 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 z-50">
+                                    <div className="p-6 space-y-6">
+                                        <div>
+                                            <p className="font-bold text-lg">Account</p>
+                                            <p className="text-gray-400 text-sm break-all mt-1">{user.email}</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-lg">Your Plan</p>
+                                            <p className="text-2xl font-bold capitalize mt-2">
+                                                {subscription.status === 'pro'
+                                                    ? 'Squigly Pro'
+                                                    : subscription.status === 'starter'
+                                                        ? 'Squigly Starter'
+                                                        : 'Free Plan'}
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col gap-3">
+                                            {subscription.status && subscription.status !== 'free' ? (
+                                                <button
+                                                    onClick={handleManageBilling}
+                                                    disabled={isBillingLoading}
+                                                    className={`w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition font-medium ${
+                                                        isBillingLoading ? 'opacity-70 cursor-wait' : ''
+                                                    }`}
+                                                >
+                                                    {isBillingLoading ? 'Opening Billing...' : 'Manage Billing'}
+                                                </button>
+                                            ) : (
+                                                <a
+                                                    href="/pricing"
+                                                    className="w-full block text-center py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition font-medium"
+                                                >
+                                                    Upgrade Plan
+                                                </a>
+                                            )}
+                                            <button
+                                                onClick={handleSignOut}
+                                                className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg transition font-medium"
+                                            >
+                                                Sign Out
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <span className="hidden sm:inline">{user.email || 'User'}</span>
-                    </button>
-
-                    {showUserMenu && (
-                        <div className="absolute right-0 mt-2 w-72 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 z-50">
-                            <div className="p-6 space-y-6">
-                                <div>
-                                    <p className="font-bold text-lg">Account</p>
-                                    <p className="text-gray-400 text-sm break-all mt-1">{user.email}</p>
-                                </div>
-
-                                <div>
-                                    <p className="font-bold text-lg">Your Plan</p>
-                                    <p className="text-2xl font-bold capitalize mt-2">
-                                        {subscription.status === 'pro'
-                                            ? 'Squigly Pro'
-                                            : subscription.status === 'starter'
-                                                ? 'Squigly Starter'
-                                                : 'Free Plan'}
-                                    </p>
-                                </div>
-
-                                <div className="flex flex-col gap-3">
-                                    {isPaidPlan ? (
-                                        <button
-                                            onClick={handleManageBilling}
-                                            disabled={isBillingLoading}
-                                            className={`w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition font-medium ${
-                                                isBillingLoading ? 'opacity-70 cursor-wait' : ''
-                                            }`}
-                                        >
-                                            {isBillingLoading ? 'Opening Billing...' : 'Manage Billing'}
-                                        </button>
-                                    ) : (
-                                        <a
-                                            href="/pricing"
-                                            className="w-full block text-center py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition font-medium"
-                                        >
-                                            Upgrade Plan
-                                        </a>
-                                    )}
-
-                                    <button
-                                        onClick={handleSignOut}
-                                        className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg transition font-medium"
-                                    >
-                                        Sign Out
-                                    </button>
-                                </div>
-                            </div>
+                    ) : (
+                        <div className="flex gap-4">
+                            <a
+                                href="/login"
+                                className="px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition"
+                            >
+                                Log in
+                            </a>
+                            <a
+                                href="/signup"
+                                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition font-medium"
+                            >
+                                Sign up
+                            </a>
                         </div>
                     )}
                 </div>
