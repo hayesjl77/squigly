@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabaseBrowser } from '@/components/Providers'; // Adjust path if needed
+import { supabaseBrowser } from '@/components/Providers';
 import { User } from '@supabase/supabase-js';
 
 export default function AuthHeader() {
@@ -53,7 +53,7 @@ export default function AuthHeader() {
 
     const handleSignOut = async () => {
         await supabaseBrowser.auth.signOut();
-        window.location.href = '/'; // Force redirect to login/home page
+        window.location.href = '/';
     };
 
     const handleManageBilling = async () => {
@@ -110,6 +110,9 @@ export default function AuthHeader() {
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <a href="/" className="text-xl text-gray-300 hover:text-white transition">
+                            Home
+                        </a>
                         <a href="/pricing" className="text-xl text-gray-300 hover:text-white transition">
                             Pricing
                         </a>
@@ -143,13 +146,11 @@ export default function AuthHeader() {
                     {showUserMenu && (
                         <div className="absolute right-0 mt-2 w-72 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 z-50">
                             <div className="p-6 space-y-6">
-                                {/* Account info */}
                                 <div>
                                     <p className="font-bold text-lg">Account</p>
                                     <p className="text-gray-400 text-sm break-all mt-1">{user.email}</p>
                                 </div>
 
-                                {/* Current Plan */}
                                 <div>
                                     <p className="font-bold text-lg">Your Plan</p>
                                     <p className="text-2xl font-bold capitalize mt-2">
@@ -161,7 +162,6 @@ export default function AuthHeader() {
                                     </p>
                                 </div>
 
-                                {/* Action Buttons */}
                                 <div className="flex flex-col gap-3">
                                     {isPaidPlan ? (
                                         <button
