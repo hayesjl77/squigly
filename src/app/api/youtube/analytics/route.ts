@@ -1,11 +1,21 @@
-// app/api/youtube/analytics/route.ts
+// src/app/api/youtube/analytics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
+
+interface AnalyticsResponse {
+    totalsForAllResults?: {
+        [metric: string]: string;
+    };
+}
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { channel_id, access_token, refresh_token } = body;
+        const { channel_id, access_token, refresh_token } = body as {
+            channel_id: string;
+            access_token: string;
+            refresh_token?: string;
+        };
 
         if (!channel_id || !access_token) {
             return NextResponse.json({ error: 'Missing channel_id or access_token' }, { status: 400 });
@@ -41,7 +51,10 @@ export async function POST(request: NextRequest) {
             metrics: 'views,estimatedMinutesWatched',
         });
 
-        const totals = response.data.totalsForAllResults || {};
+        // Safe type assertion for response.data
+        const data = response.data as AnalyticsResponse;
+
+        const totals = data.totalsForAllResults || {};
 
         const summary = {
             totalViews: Number(totals.views || 0),
@@ -49,14 +62,10 @@ export async function POST(request: NextRequest) {
         };
 
         return NextResponse.json(summary);
-    } catch (error: any) {
-        console.error('YouTube Analytics v2 error:', {
-            message: error.message,
-            response: error.response?.data,
-            details: error.errors,
-        });
+    } catch (error: unknown) {
+        console.error('YouTube Analytics v2 error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch analytics' },
+            { error: error instanceof Error ? error.message : 'Failed to fetch analytics' },
             { status: 500 }
         );
     }
