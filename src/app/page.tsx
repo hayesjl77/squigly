@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from "react";
 import { supabaseBrowser } from '@/components/Providers';
 import { User } from '@supabase/supabase-js';
@@ -184,9 +185,7 @@ export default function Home() {
           .eq('channel_id', channelId)
           .eq('user_id', user?.id)
           .single();
-
       if (!tokenData?.access_token) return;
-
       const res = await fetch('/api/youtube/analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,9 +195,7 @@ export default function Home() {
           refresh_token: tokenData.refresh_token || null,
         }),
       });
-
       const data = await res.json();
-
       if (res.ok) {
         setAnalyticsSummary(data);
         if (reconnectingChannel === channelId) {
@@ -232,15 +229,16 @@ export default function Home() {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const redirectUri = `${location.origin}/api/youtube/callback`;
     const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
-      client_id: clientId!,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: scope,
-      access_type: 'offline',
-      prompt: 'select_account consent',
-      state: JSON.stringify({ userId: user.id }),
-    }).toString();
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        new URLSearchParams({
+          client_id: clientId!,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: scope,
+          access_type: 'offline',
+          prompt: 'select_account consent',
+          state: JSON.stringify({ userId: user.id }),
+        }).toString();
     window.location.href = authUrl;
   };
 
@@ -250,15 +248,16 @@ export default function Home() {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const redirectUri = `${location.origin}/api/youtube/callback`;
     const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
-      client_id: clientId!,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: scope,
-      access_type: 'offline',
-      prompt: 'consent',
-      state: JSON.stringify({ userId: user.id, channel_id: channelId, reconnect: true }),
-    }).toString();
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        new URLSearchParams({
+          client_id: clientId!,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: scope,
+          access_type: 'offline',
+          prompt: 'consent',
+          state: JSON.stringify({ userId: user.id, channel_id: channelId, reconnect: true }),
+        }).toString();
     window.location.href = authUrl;
   };
 
@@ -285,27 +284,22 @@ export default function Home() {
 
   const checkRateLimits = async () => {
     if (!user || !subscription) return;
-
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
     const { data: usesThisMonth, error: monthError } = await supabaseBrowser
         .from('analysis_uses')
         .select('id')
         .eq('user_id', user.id)
         .gte('used_at', monthStart.toISOString());
-
     if (monthError) {
       console.error('Monthly limit check failed:', monthError);
       setMonthlyMessage('Error checking monthly limit');
       return;
     }
-
     const tier = subscription.status || 'free';
     const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
     const monthlyUsed = usesThisMonth?.length || 0;
     const monthlyRemaining = monthlyLimit - monthlyUsed;
-
     setMonthlyMessage(`${monthlyRemaining} of ${monthlyLimit} analyses remaining this month`);
 
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -315,16 +309,13 @@ export default function Home() {
         .eq('user_id', user.id)
         .gte('used_at', hourAgo.toISOString())
         .order('used_at', { ascending: false });
-
     if (hourError) {
       console.error('Hourly limit check failed:', hourError);
       setHourlyMessage('Error checking hourly limit');
       return;
     }
-
     const hourlyUsed = recentUses?.length || 0;
     const hourlyRemaining = 5 - hourlyUsed;
-
     if (hourlyRemaining < 5) {
       setHourlyMessage(`${hourlyRemaining} of 5 analyses remaining this hour`);
     } else {
@@ -334,25 +325,20 @@ export default function Home() {
 
   const analyzeChannel = async () => {
     if (videos.length === 0 || !selectedChannel || !user) return;
-
     const now = new Date();
-
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const { data: usesThisMonth, error: monthError } = await supabaseBrowser
         .from('analysis_uses')
         .select('id')
         .eq('user_id', user.id)
         .gte('used_at', monthStart.toISOString());
-
     if (monthError) {
       console.error('Monthly limit check error:', monthError);
       setAnalysisData({ error: 'Failed to check monthly limit.' });
       return;
     }
-
     const tier = subscription?.status || 'free';
     const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
-
     if ((usesThisMonth?.length || 0) >= monthlyLimit) {
       setAnalysisData({
         error: tier === 'pro'
@@ -363,7 +349,6 @@ export default function Home() {
       });
       return;
     }
-
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const { data: recentUses, error: hourError } = await supabaseBrowser
         .from('analysis_uses')
@@ -371,13 +356,11 @@ export default function Home() {
         .eq('user_id', user.id)
         .gte('used_at', hourAgo.toISOString())
         .order('used_at', { ascending: false });
-
     if (hourError) {
       console.error('Hourly limit check error:', hourError);
       setAnalysisData({ error: 'Failed to check rate limit.' });
       return;
     }
-
     if ((recentUses?.length || 0) >= 5) {
       const oldestInWindow = new Date(recentUses[4].used_at);
       const minutesUntilReset = Math.ceil(
@@ -389,11 +372,9 @@ export default function Home() {
       setAnalysisData({ error: "Too many requests. Please wait." });
       return;
     }
-
     if (savedAnalysis && currentVideoFingerprint) {
       const lastTime = new Date(savedAnalysis.timestamp);
       const hoursSince = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60);
-
       if (hoursSince < 24) {
         setAnalysisData({
           analysis: savedAnalysis.analysis,
@@ -403,10 +384,8 @@ export default function Home() {
         return;
       }
     }
-
     setAnalyzing(true);
     setAnalysisData(null);
-
     try {
       const profile = profiles[selectedChannel] || {};
       const res = await fetch('/api/ai/analyze', {
@@ -419,32 +398,19 @@ export default function Home() {
           goal: profile.goal || 'No goal stated',
         }),
       });
-
       const data = await res.json();
-
       if (res.ok) {
         setAnalysisData(data);
         const nowIso = new Date().toISOString();
-        setSavedAnalysis({
-          analysis: data.analysis,
-          fixes: data.fixes,
-          timestamp: nowIso,
-        });
-
+        setSavedAnalysis({ analysis: data.analysis, fixes: data.fixes, timestamp: nowIso });
         const { error: insertError } = await supabaseBrowser
             .from('analysis_uses')
-            .insert({
-              user_id: user.id,
-              channel_id: selectedChannel,
-              used_at: nowIso,
-            });
-
+            .insert({ user_id: user.id, channel_id: selectedChannel, used_at: nowIso });
         if (insertError) {
           console.error('Failed to record usage:', insertError);
         } else {
           checkRateLimits();
         }
-
         await supabaseBrowser
             .from('channel_analyses')
             .upsert({
@@ -497,19 +463,25 @@ export default function Home() {
 
   if (!user) {
     return (
-        <div className="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center p-8"
-             style={{ backgroundImage: "url('/images/background.png')" }}>
+        <div className="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center p-8" style={{ backgroundImage: "url('/images/background.png')" }}>
           <div className="text-center space-y-20">
             <div>
-              <img src="/images/Squigly_Logo.png" alt="Squigly" className="mx-auto w-auto h-96 md:h-[500px] lg:h-[600px] drop-shadow-2xl" />
+              <img
+                  src="/images/Squigly_Logo.png"
+                  alt="Squigly"
+                  className="mx-auto w-auto h-96 md:h-[500px] lg:h-[600px] drop-shadow-2xl"
+              />
             </div>
             <div>
-              <button onClick={handleGoogleSignIn} className="px-9 py-4 bg-white text-black font-semibold text-lg rounded-full hover:bg-gray-100 transition flex items-center justify-center gap-4 mx-auto shadow-2xl">
+              <button
+                  onClick={handleGoogleSignIn}
+                  className="px-9 py-4 bg-white text-black font-semibold text-lg rounded-full hover:bg-gray-100 transition flex items-center justify-center gap-4 mx-auto shadow-2xl"
+              >
                 <svg className="w-7 h-7" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
                 Sign in with Google to create your Squigly account
               </button>
@@ -521,77 +493,6 @@ export default function Home() {
 
   return (
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-black text-white">
-        <header className="border-b border-gray-800 p-6">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-4">
-                <img src="/images/Squigly_Logo.png" alt="Squigly Logo" className="h-12 w-auto drop-shadow-lg" />
-                <h1 className="text-4xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-                  Squigly
-                </h1>
-              </div>
-              <div className="flex items-center gap-6">
-                <a href="/pricing" className="text-xl text-gray-300 hover:text-white transition">Pricing</a>
-                <a href="/terms" className="text-xl text-gray-300 hover:text-white transition">Terms</a>
-                <a href="/privacy" className="text-xl text-gray-300 hover:text-white transition">Privacy</a>
-                <a href="/roadmap" className="text-xl text-gray-300 hover:text-white transition font-medium text-purple-400 hover:text-purple-300">
-                  Roadmap
-                </a>
-              </div>
-            </div>
-            <div className="relative">
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-3 px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition">
-                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold">
-                  {user?.email ? user.email[0].toUpperCase() : '?'}
-                </div>
-                <span>{user?.email || 'Loading...'}</span>
-              </button>
-              {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 z-50">
-                    <div className="p-6">
-                      <p className="font-bold mb-2">Account</p>
-                      <p className="text-gray-400 text-sm mb-4">{user?.email || 'Loading...'}</p>
-                      <div className="mb-6">
-                        <p className="font-bold mb-2">Your Plan</p>
-                        <p className="capitalize text-2xl font-bold mb-4">
-                          {subscription?.status === 'pro' ? 'Squigly Pro' : subscription?.status === 'starter' ? 'Squigly Starter' : 'Free Plan'}
-                        </p>
-                        {subscription?.status ? (
-                            <button
-                                onClick={async () => {
-                                  const res = await fetch('/api/stripe/portal', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ userId: user.id }),
-                                  });
-                                  if (!res.ok) {
-                                    const err = await res.json();
-                                    alert(err.error || 'Failed');
-                                    return;
-                                  }
-                                  const { url } = await res.json();
-                                  window.location.href = url;
-                                }}
-                                className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
-                            >
-                              Manage Billing
-                            </button>
-                        ) : (
-                            <a href="/pricing" className="w-full block text-center py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
-                              View Plans & Upgrade
-                            </a>
-                        )}
-                      </div>
-                      <button onClick={handleSignOut} className="w-full py-3 bg-red-600 rounded-lg hover:bg-red-700 transition">
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-              )}
-            </div>
-          </div>
-        </header>
-
         <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1">
             <h2 className="text-3xl font-bold mb-6">Your Channels</h2>
@@ -599,7 +500,11 @@ export default function Home() {
               {channels.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-xl text-gray-400 mb-8">No channels connected yet</p>
-                    <button onClick={handleAddChannel} disabled={addingChannel} className="px-8 py-6 bg-purple-600 text-white font-bold text-xl rounded-2xl hover:bg-purple-700 transition disabled:opacity-50">
+                    <button
+                        onClick={handleAddChannel}
+                        disabled={addingChannel}
+                        className="px-8 py-6 bg-purple-600 text-white font-bold text-xl rounded-2xl hover:bg-purple-700 transition disabled:opacity-50"
+                    >
                       {addingChannel ? 'Connecting...' : 'Add Your First Channel'}
                     </button>
                     <p className="mt-6 text-sm text-gray-500 max-w-xs mx-auto">
@@ -611,9 +516,7 @@ export default function Home() {
                     {channels.map((ch) => (
                         <div
                             key={ch.channel_id}
-                            className={`bg-gray-800/50 rounded-xl p-6 border transition cursor-pointer ${
-                                selectedChannel === ch.channel_id ? 'border-purple-500 shadow-purple-500/50 shadow-xl' : 'border-gray-700'
-                            }`}
+                            className={`bg-gray-800/50 rounded-xl p-6 border transition cursor-pointer ${selectedChannel === ch.channel_id ? 'border-purple-500 shadow-purple-500/50 shadow-xl' : 'border-gray-700'}`}
                             onClick={() => setSelectedChannel(ch.channel_id)}
                         >
                           <div className="flex justify-between items-start">
@@ -877,7 +780,9 @@ export default function Home() {
                           )}
                           <h2 className="text-4xl font-bold mb-8 text-center">Squigly's God Mode Analysis</h2>
                           <div className="bg-gray-800/70 rounded-3xl p-10 border border-purple-500 shadow-2xl">
-                            <pre className="whitespace-pre-wrap text-lg leading-relaxed text-gray-100">{analysisData.analysis}</pre>
+                      <pre className="whitespace-pre-wrap text-lg leading-relaxed text-gray-100">
+                        {analysisData.analysis}
+                      </pre>
                           </div>
                         </div>
 
@@ -889,7 +794,10 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Optimized Channel Description</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.description}</p>
-                                      <button onClick={() => copyToClipboard(analysisData.fixes.description)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
+                                      <button
+                                          onClick={() => copyToClipboard(analysisData.fixes.description)}
+                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
+                                      >
                                         Copy to Clipboard
                                       </button>
                                     </div>
@@ -898,7 +806,10 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Shorts Title Template</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.shortsTitleTemplate}</p>
-                                      <button onClick={() => copyToClipboard(analysisData.fixes.shortsTitleTemplate)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
+                                      <button
+                                          onClick={() => copyToClipboard(analysisData.fixes.shortsTitleTemplate)}
+                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
+                                      >
                                         Copy Template
                                       </button>
                                     </div>
@@ -907,7 +818,10 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Long-form Title Template</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.longformTitleTemplate}</p>
-                                      <button onClick={() => copyToClipboard(analysisData.fixes.longformTitleTemplate)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
+                                      <button
+                                          onClick={() => copyToClipboard(analysisData.fixes.longformTitleTemplate)}
+                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
+                                      >
                                         Copy Template
                                       </button>
                                     </div>
@@ -916,7 +830,10 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Recommended Hashtags</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.hashtags}</p>
-                                      <button onClick={() => copyToClipboard(analysisData.fixes.hashtags)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
+                                      <button
+                                          onClick={() => copyToClipboard(analysisData.fixes.hashtags)}
+                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
+                                      >
                                         Copy Hashtags
                                       </button>
                                     </div>
