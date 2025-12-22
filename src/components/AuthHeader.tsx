@@ -67,25 +67,26 @@ export default function AuthHeader() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include', // Required to send auth cookies
-                // No body needed anymore → server gets user from cookie
+                credentials: 'include', // Required to send Supabase auth cookies
             });
 
+            // IMPORTANT: Read the body ONLY ONCE
             const data = await res.json();
 
             if (!res.ok) {
-                const errorData = await res.json();
+                // Handle specific status codes using the already-parsed data
                 if (res.status === 401) {
-                    alert('Session expired. Please log out and log back in.');
+                    alert('Session expired or unauthorized. Please log out and log back in.');
                     return;
                 }
-                throw new Error(errorData.error || 'Failed to open billing portal');
+                throw new Error(data.error || 'Failed to open billing portal');
             }
 
             if (!data.url) {
-                throw new Error('No portal URL received');
+                throw new Error('No portal URL received from server');
             }
 
+            // Success: redirect to Stripe portal
             window.location.href = data.url;
         } catch (error: any) {
             console.error('Manage Billing error:', error);
