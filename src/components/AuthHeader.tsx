@@ -67,13 +67,19 @@ export default function AuthHeader() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ userId: user?.id }),
+                credentials: 'include', // Required to send auth cookies
+                // No body needed anymore → server gets user from cookie
             });
 
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to open billing portal');
+                const errorData = await res.json();
+                if (res.status === 401) {
+                    alert('Session expired. Please log out and log back in.');
+                    return;
+                }
+                throw new Error(errorData.error || 'Failed to open billing portal');
             }
 
             if (!data.url) {
