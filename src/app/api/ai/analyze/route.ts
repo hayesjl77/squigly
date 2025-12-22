@@ -1,4 +1,3 @@
-// app/api/ai/analyze/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -9,9 +8,9 @@ const supabaseAdmin = createClient(
     { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-// xAI Grok API endpoint and key (use your actual key from xAI dashboard)
+// xAI Grok API endpoint and key
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
-const GROK_API_KEY = process.env.XAI_API_KEY!; // Add this to .env
+const GROK_API_KEY = process.env.XAI_API_KEY!;
 
 export async function POST(request: NextRequest) {
     try {
@@ -27,9 +26,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
-        // Prepare video summary for prompt (limit to top/recent to avoid token overflow)
+        // Prepare video summary (limit to recent 20 to avoid token overflow)
         const videoSummary = videos
-            .slice(0, 20) // Take recent 20 to keep prompt reasonable
+            .slice(0, 20)
             .map((v: any) => ({
                 title: v.title,
                 views: v.views,
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
                 isShort: parseDuration(v.duration) <= 60 ? 'Yes' : 'No',
             }));
 
-        // Build powerful, personalized prompt for Grok
+        // Build prompt
         const prompt = `
 You are Squigly, a brutally honest, elite "God Mode" AI coach for YouTube Shorts creators. 
 Your job: Analyze this creator's channel and recent videos with zero sugarcoating. 
@@ -84,7 +83,7 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
                 'Authorization': `Bearer ${GROK_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning', // or latest fast model
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     { role: 'system', content: 'You are Squigly, elite YouTube Shorts coach.' },
                     { role: 'user', content: prompt },
@@ -114,11 +113,11 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
             fixes = JSON.parse(fixesPart.trim());
         } catch (e) {
             console.error('Failed to parse fixes JSON:', e);
-            fixes = {}; // Fallback
+            fixes = {};
         }
 
-        // Clean up analysis text (remove any trailing JSON or junk)
-        const cleanAnalysis = analysisPart.trim().replace(/---FIXES---.*$/s, '').trim();
+        // Clean up analysis text (remove any trailing JSON or junk) - FIXED VERSION
+        const cleanAnalysis = analysisPart.trim().split('---FIXES---')[0].trim();
 
         return NextResponse.json({
             analysis: cleanAnalysis,
@@ -130,7 +129,7 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
     }
 }
 
-// Helper to parse duration (same as frontend)
+// Helper to parse duration
 function parseDuration(duration: string): number {
     const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
     const h = match?.[1] ? parseInt(match[1]) : 0;
