@@ -1,6 +1,6 @@
 // app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import stripe from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {

@@ -1,6 +1,6 @@
 // app/api/stripe/checkout/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import stripe from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
     const body = await request.json()
