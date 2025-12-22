@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { supabaseBrowser } from '@/components/Providers';
 import { User } from '@supabase/supabase-js';
-import AuthHeader from '@/components/AuthHeader';
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -123,11 +122,7 @@ export default function Home() {
         .single();
     if (data) {
       setProfiles(prev => ({ ...prev, [channelId]: data }));
-      setTempProfile({
-        channel_name: data.channel_name || "",
-        channel_about: data.channel_about || "",
-        goal: data.goal || "",
-      });
+      setTempProfile({ channel_name: data.channel_name || "", channel_about: data.channel_about || "", goal: data.goal || "" });
       return data;
     }
     setTempProfile({ channel_name: "", channel_about: "", goal: "" });
@@ -155,11 +150,7 @@ export default function Home() {
         .eq('channel_id', channelId)
         .single();
     if (data) {
-      const saved = {
-        analysis: data.analysis_text,
-        fixes: data.fixes,
-        timestamp: data.created_at,
-      };
+      const saved = { analysis: data.analysis_text, fixes: data.fixes, timestamp: data.created_at };
       setSavedAnalysis(saved);
       setAnalysisData({ analysis: data.analysis_text, fixes: data.fixes });
     } else {
@@ -263,7 +254,7 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await supabaseBrowser.auth.signOut();
-    window.location.href = '/'; // Force redirect to login page
+    window.location.href = '/';
   };
 
   const handleProfileSave = async () => {
@@ -300,9 +291,7 @@ export default function Home() {
     const tier = subscription.status || 'free';
     const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
     const monthlyUsed = usesThisMonth?.length || 0;
-    const monthlyRemaining = monthlyLimit - monthlyUsed;
     setMonthlyMessage(`${monthlyRemaining} of ${monthlyLimit} analyses remaining this month`);
-
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const { data: recentUses, error: hourError } = await supabaseBrowser
         .from('analysis_uses')
@@ -362,12 +351,8 @@ export default function Home() {
     }
     if ((recentUses?.length || 0) >= 5) {
       const oldestInWindow = new Date(recentUses[4].used_at);
-      const minutesUntilReset = Math.ceil(
-          (60 * 60 * 1000 - (now.getTime() - oldestInWindow.getTime())) / 60000
-      );
-      setHourlyMessage(
-          `Rate limit reached: 0 of 5 remaining. Resets in ${minutesUntilReset} minute${minutesUntilReset === 1 ? '' : 's'}.`
-      );
+      const minutesUntilReset = Math.ceil((60 * 60 * 1000 - (now.getTime() - oldestInWindow.getTime())) / 60000);
+      setHourlyMessage(`Rate limit reached: 0 of 5 remaining. Resets in ${minutesUntilReset} minute${minutesUntilReset === 1 ? '' : 's'}.`);
       setAnalysisData({ error: "Too many requests. Please wait." });
       return;
     }
@@ -485,8 +470,7 @@ export default function Home() {
 
   return (
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-black text-white">
-        <AuthHeader />
-
+        {/* NO <AuthHeader /> here anymore – it comes from root layout */}
         <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1">
             <h2 className="text-3xl font-bold mb-6">Your Channels</h2>
@@ -494,11 +478,7 @@ export default function Home() {
               {channels.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-xl text-gray-400 mb-8">No channels connected yet</p>
-                    <button
-                        onClick={handleAddChannel}
-                        disabled={addingChannel}
-                        className="px-8 py-6 bg-purple-600 text-white font-bold text-xl rounded-2xl hover:bg-purple-700 transition disabled:opacity-50"
-                    >
+                    <button onClick={handleAddChannel} disabled={addingChannel} className="px-8 py-6 bg-purple-600 text-white font-bold text-xl rounded-2xl hover:bg-purple-700 transition disabled:opacity-50">
                       {addingChannel ? 'Connecting...' : 'Add Your First Channel'}
                     </button>
                     <p className="mt-6 text-sm text-gray-500 max-w-xs mx-auto">
@@ -679,7 +659,7 @@ export default function Home() {
                         <h3 className="text-2xl font-bold mb-6">Top 5 Shorts</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {shortsStats.top.map((short: any, index: number) => (
-                              <div key={short.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700">
+                              <div key={short.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl">
                                 <div className="relative">
                                   <img src={short.thumbnail} alt={short.title} className="w-full h-48 object-cover" />
                                   <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -729,7 +709,7 @@ export default function Home() {
                         <h3 className="text-2xl font-bold mb-6">Top 5 Long-form Videos</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {longFormStats.top.map((video: any, index: number) => (
-                              <div key={video.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700">
+                              <div key={video.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl">
                                 <div className="relative">
                                   <img src={video.thumbnail} alt={video.title} className="w-full h-48 object-cover" />
                                   <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -790,10 +770,7 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Optimized Channel Description</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.description}</p>
-                                      <button
-                                          onClick={() => copyToClipboard(analysisData.fixes.description)}
-                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
-                                      >
+                                      <button onClick={() => copyToClipboard(analysisData.fixes.description)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
                                         Copy to Clipboard
                                       </button>
                                     </div>
@@ -802,10 +779,7 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Shorts Title Template</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.shortsTitleTemplate}</p>
-                                      <button
-                                          onClick={() => copyToClipboard(analysisData.fixes.shortsTitleTemplate)}
-                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
-                                      >
+                                      <button onClick={() => copyToClipboard(analysisData.fixes.shortsTitleTemplate)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
                                         Copy Template
                                       </button>
                                     </div>
@@ -814,10 +788,7 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Long-form Title Template</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.longformTitleTemplate}</p>
-                                      <button
-                                          onClick={() => copyToClipboard(analysisData.fixes.longformTitleTemplate)}
-                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
-                                      >
+                                      <button onClick={() => copyToClipboard(analysisData.fixes.longformTitleTemplate)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
                                         Copy Template
                                       </button>
                                     </div>
@@ -826,10 +797,7 @@ export default function Home() {
                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                       <h3 className="font-bold text-xl mb-4">Recommended Hashtags</h3>
                                       <p className="text-gray-300 mb-4">{analysisData.fixes.hashtags}</p>
-                                      <button
-                                          onClick={() => copyToClipboard(analysisData.fixes.hashtags)}
-                                          className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition"
-                                      >
+                                      <button onClick={() => copyToClipboard(analysisData.fixes.hashtags)} className="w-full py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition">
                                         Copy Hashtags
                                       </button>
                                     </div>
@@ -838,26 +806,6 @@ export default function Home() {
                             </div>
                         )}
                       </>
-                  )}
-
-                  {videos.length > 0 && (
-                      <div>
-                        <h2 className="text-4xl font-bold mb-8">Your Recent Videos</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                          {videos.slice(0, 6).map((video: any) => (
-                              <div key={video.id} className="bg-gray-800/50 rounded-2xl overflow-hidden border border-gray-700 shadow-xl">
-                                <img src={video.thumbnail} alt={video.title} className="w-full h-64 object-cover" />
-                                <div className="p-6">
-                                  <h3 className="font-bold text-lg mb-3 line-clamp-2">{video.title}</h3>
-                                  <div className="space-y-2 text-gray-300">
-                                    <p>Views: {video.views.toLocaleString()}</p>
-                                    <p>Likes: {video.likes.toLocaleString()}</p>
-                                  </div>
-                                </div>
-                              </div>
-                          ))}
-                        </div>
-                      </div>
                   )}
                 </>
             ) : (
