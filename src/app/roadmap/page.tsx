@@ -1,9 +1,13 @@
 // src/app/roadmap/page.tsx
+import AuthHeader from '@/components/AuthHeader';
+
 export default function Roadmap() {
     return (
-        <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#0f172a] to-black text-white py-16 px-6">
-            <div className="max-w-6xl mx-auto">
-                {/* Hero Section */}
+        <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#0f172a] to-black text-white">
+            <AuthHeader />
+
+            <div className="max-w-6xl mx-auto py-16 px-6">
+                {/* Hero */}
                 <div className="text-center mb-20">
                     <h1 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 bg-clip-text text-transparent mb-6 tracking-tight">
                         Squigly Roadmap
@@ -13,12 +17,11 @@ export default function Roadmap() {
                     </p>
                 </div>
 
-                {/* Completed Section */}
+                {/* Completed */}
                 <section className="mb-24">
                     <h2 className="text-4xl md:text-5xl font-bold mb-10 text-purple-400 flex items-center gap-4 justify-center md:justify-start">
                         <span className="text-6xl">✓</span> Already Shipped
                     </h2>
-
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {[
                             {
@@ -54,7 +57,6 @@ export default function Roadmap() {
                     <h2 className="text-4xl md:text-5xl font-bold mb-10 text-yellow-400 flex items-center gap-4 justify-center md:justify-start">
                         <span className="text-6xl">⚙️</span> In Active Development
                     </h2>
-
                     <div className="bg-gray-800/30 rounded-2xl p-8 border border-gray-700/50 max-w-4xl mx-auto">
                         <ul className="space-y-6 text-lg text-gray-200 list-disc pl-6 marker:text-yellow-400">
                             <li className="pl-2">Fixing OAuth redirect flows for seamless production onboarding</li>
@@ -65,7 +67,7 @@ export default function Roadmap() {
                     </div>
                 </section>
 
-                {/* Future Plans */}
+                {/* Future */}
                 <section className="mb-24">
                     <h2 className="text-4xl md:text-5xl font-bold mb-10 text-pink-500 flex items-center gap-4 justify-center md:justify-start">
                         <span className="text-6xl">🚀</span> Coming 2026 & Beyond
@@ -118,7 +120,7 @@ export default function Roadmap() {
                     </div>
                 </section>
 
-                {/* Final CTA */}
+                {/* CTA */}
                 <div className="text-center py-16 border-t border-gray-700/50">
                     <p className="text-3xl font-bold text-purple-300 mb-6">
                         We're building fast — the future of short-form content creation is AI-first & multi-platform.
