@@ -531,14 +531,11 @@ export default function Home() {
                 </h1>
               </div>
               <div className="flex items-center gap-6">
-                <a href="/pricing" className="text-xl text-gray-300 hover:text-white transition">
-                  Pricing
-                </a>
-                <a href="/terms" className="text-xl text-gray-300 hover:text-white transition">
-                  Terms
-                </a>
-                <a href="/privacy" className="text-xl text-gray-300 hover:text-white transition">
-                  Privacy
+                <a href="/pricing" className="text-xl text-gray-300 hover:text-white transition">Pricing</a>
+                <a href="/terms" className="text-xl text-gray-300 hover:text-white transition">Terms</a>
+                <a href="/privacy" className="text-xl text-gray-300 hover:text-white transition">Privacy</a>
+                <a href="/roadmap" className="text-xl text-gray-300 hover:text-white transition font-medium text-purple-400 hover:text-purple-300">
+                  Roadmap
                 </a>
               </div>
             </div>
