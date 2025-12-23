@@ -27,9 +27,13 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     const [analyticsSummary, setAnalyticsSummary] = useState<any>(null);
     const [currentVideoFingerprint, setCurrentVideoFingerprint] = useState<string | null>(null);
     const [reconnectingChannel, setReconnectingChannel] = useState<string | null>(null);
+    const [hasConnectedChannel, setHasConnectedChannel] = useState<boolean | null>(null); // NEW gating
 
     const isMounted = useRef(true);
 
+    // ──────────────────────────────────────────────────────────────
+    // Helpers (unchanged)
+    // ──────────────────────────────────────────────────────────────
     const formatTimestamp = (isoString: string) => {
         const date = new Date(isoString);
         return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(date);
@@ -64,6 +68,24 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         return { total: videoList.length, totalViews, totalLikes, totalComments, avgEngagement, viewTrend, top };
     };
 
+    const resetAllState = () => {
+        setChannels([]);
+        setProfiles({});
+        setSelectedChannel(null);
+        setVideos([]);
+        setSubscription(null);
+        setAnalysisData(null);
+        setSavedAnalysis(null);
+        setHourlyMessage(null);
+        setMonthlyMessage(null);
+        setAnalyticsSummary(null);
+        setCurrentVideoFingerprint(null);
+        setReconnectingChannel(null);
+    };
+
+    // ──────────────────────────────────────────────────────────────
+    // Auth + initial load (unchanged)
+    // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         isMounted.current = true;
 
@@ -99,21 +121,32 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         };
     }, []);
 
-    const resetAllState = () => {
-        setChannels([]);
-        setProfiles({});
-        setSelectedChannel(null);
-        setVideos([]);
-        setSubscription(null);
-        setAnalysisData(null);
-        setSavedAnalysis(null);
-        setHourlyMessage(null);
-        setMonthlyMessage(null);
-        setAnalyticsSummary(null);
-        setCurrentVideoFingerprint(null);
-        setReconnectingChannel(null);
-    };
+    // NEW: Gate check - has any YouTube channel connected?
+    useEffect(() => {
+        if (!user?.id) return;
 
+        const checkConnection = async () => {
+            try {
+                const { data, error } = await supabaseBrowser
+                    .from('youtube_tokens')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .limit(1);
+
+                if (error) throw error;
+                setHasConnectedChannel(!!data?.length);
+            } catch (err) {
+                console.error('Error checking channel connection:', err);
+                setHasConnectedChannel(false);
+            }
+        };
+
+        checkConnection();
+    }, [user?.id]);
+
+    // ──────────────────────────────────────────────────────────────
+    // Fetch & handlers (unchanged)
+    // ──────────────────────────────────────────────────────────────
     const fetchChannels = async (userId: string) => {
         const { data } = await supabaseBrowser
             .from('youtube_tokens')
@@ -449,6 +482,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         alert("Copied to clipboard!");
     };
 
+    // ──────────────────────────────────────────────────────────────
+    // Existing effects (unchanged)
+    // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         if (selectedChannel && user) {
             fetchVideos(selectedChannel);
@@ -476,7 +512,46 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     }, [user]);
 
     // ──────────────────────────────────────────────────────────────
-    // RENDER - Dashboard UI
+    // GATING LOGIC
+    // ──────────────────────────────────────────────────────────────
+    if (hasConnectedChannel === null) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0f172a] to-black">
+                <div className="text-2xl text-purple-400 animate-pulse">Loading your account...</div>
+            </div>
+        );
+    }
+
+    if (!hasConnectedChannel) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-black text-white flex items-center justify-center p-8">
+                <div className="max-w-3xl text-center space-y-8">
+                    <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-purple-500 to-pink-600 bg-clip-text text-transparent">
+                        Welcome to Squigly!
+                    </h1>
+
+                    <p className="text-xl md:text-2xl text-gray-200">
+                        Connect your YouTube channel to unlock AI-powered analysis, analytics, and growth tools.
+                    </p>
+
+                    <button
+                        onClick={handleAddChannel}
+                        disabled={addingChannel}
+                        className="px-12 py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-2xl rounded-2xl shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:scale-100"
+                    >
+                        {addingChannel ? 'Connecting...' : 'Connect Your YouTube Channel'}
+                    </button>
+
+                    <p className="text-lg text-gray-400 pt-6">
+                        Once connected, you'll get instant access to everything Squigly has to offer.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // FULL ORIGINAL DASHBOARD (nothing removed)
     // ──────────────────────────────────────────────────────────────
     const shortsStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') <= 60));
     const longFormStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') > 60));
@@ -680,10 +755,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                     <h3 className="text-2xl font-bold mb-6">Top 5 Shorts</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {shortsStats.top.map((short: any, index: number) => (
-                                            <div
-                                                key={short.id}
-                                                className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl"
-                                            >
+                                            <div key={short.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl">
                                                 <div className="relative">
                                                     <img src={short.thumbnail} alt={short.title} className="w-full h-48 object-cover" />
                                                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -734,10 +806,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                     <h3 className="text-2xl font-bold mb-6">Top 5 Long-form Videos</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {longFormStats.top.map((video: any, index: number) => (
-                                            <div
-                                                key={video.id}
-                                                className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl"
-                                            >
+                                            <div key={video.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl">
                                                 <div className="relative">
                                                     <img src={video.thumbnail} alt={video.title} className="w-full h-48 object-cover" />
                                                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -806,7 +875,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                                         </button>
                                                     </div>
                                                 )}
-
                                                 {analysisData.fixes.shortsTitleTemplate && (
                                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                                         <h3 className="font-bold text-xl mb-4">Shorts Title Template</h3>
@@ -819,7 +887,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                                         </button>
                                                     </div>
                                                 )}
-
                                                 {analysisData.fixes.longformTitleTemplate && (
                                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                                         <h3 className="font-bold text-xl mb-4">Long-form Title Template</h3>
@@ -832,7 +899,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                                         </button>
                                                     </div>
                                                 )}
-
                                                 {analysisData.fixes.hashtags && (
                                                     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
                                                         <h3 className="font-bold text-xl mb-4">Recommended Hashtags</h3>
