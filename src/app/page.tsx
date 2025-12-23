@@ -278,20 +278,26 @@ export default function Home() {
     if (!user || !subscription) return;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const { data: usesThisMonth, error: monthError } = await supabaseBrowser
         .from('analysis_uses')
         .select('id')
         .eq('user_id', user.id)
         .gte('used_at', monthStart.toISOString());
+
     if (monthError) {
       console.error('Monthly limit check failed:', monthError);
       setMonthlyMessage('Error checking monthly limit');
       return;
     }
+
     const tier = subscription.status || 'free';
     const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
     const monthlyUsed = usesThisMonth?.length || 0;
+    const monthlyRemaining = monthlyLimit - monthlyUsed; // Fixed: added missing calculation
+
     setMonthlyMessage(`${monthlyRemaining} of ${monthlyLimit} analyses remaining this month`);
+
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const { data: recentUses, error: hourError } = await supabaseBrowser
         .from('analysis_uses')
@@ -299,13 +305,16 @@ export default function Home() {
         .eq('user_id', user.id)
         .gte('used_at', hourAgo.toISOString())
         .order('used_at', { ascending: false });
+
     if (hourError) {
       console.error('Hourly limit check failed:', hourError);
       setHourlyMessage('Error checking hourly limit');
       return;
     }
+
     const hourlyUsed = recentUses?.length || 0;
     const hourlyRemaining = 5 - hourlyUsed;
+
     if (hourlyRemaining < 5) {
       setHourlyMessage(`${hourlyRemaining} of 5 analyses remaining this hour`);
     } else {
@@ -470,7 +479,6 @@ export default function Home() {
 
   return (
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-black text-white">
-        {/* NO <AuthHeader /> here anymore – it comes from root layout */}
         <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1">
             <h2 className="text-3xl font-bold mb-6">Your Channels</h2>
