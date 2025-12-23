@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+export const dynamic = 'force-dynamic';  // Force dynamic rendering, no caching
 export async function GET(request: Request) {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
