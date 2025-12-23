@@ -1,6 +1,9 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next';
-import AuthHeader from '@/components/AuthHeader'; // adjust path if needed
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import AuthHeader from '@/components/AuthHeader';
+import { SupabaseProvider } from '@/components/SupabaseProvider'; // ← new import
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -8,16 +11,21 @@ export const metadata: Metadata = {
     description: 'AI-powered analysis and optimization for YouTube creators',
 };
 
-export default function RootLayout({
-                                       children,
-                                   }: Readonly<{
+export default async function RootLayout({
+                                             children,
+                                         }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const supabase = createServerComponentClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
+
     return (
         <html lang="en">
         <body className="bg-gradient-to-b from-[#0f172a] to-black text-white antialiased">
-        <AuthHeader /> {/* ← Add here – shows on ALL pages */}
-        {children}
+        <SupabaseProvider initialSession={session}>
+            <AuthHeader />
+            {children}
+        </SupabaseProvider>
         </body>
         </html>
     );
