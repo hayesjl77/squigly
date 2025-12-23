@@ -1,6 +1,7 @@
+// src/app/page.tsx
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabaseBrowser } from '@/components/Providers';
 import { User } from '@supabase/supabase-js';
 
@@ -23,6 +24,8 @@ export default function Home() {
   const [currentVideoFingerprint, setCurrentVideoFingerprint] = useState<string | null>(null);
   const [reconnectingChannel, setReconnectingChannel] = useState<string | null>(null);
 
+  const isMounted = useRef(true);
+
   const formatTimestamp = (isoString: string) => {
     const date = new Date(isoString);
     return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(date);
@@ -43,16 +46,6 @@ export default function Home() {
         .join('||');
   };
 
-  const { shortsList, longFormList } = videos.reduce((acc: any, video: any) => {
-    const seconds = parseDuration(video.duration || 'PT0S');
-    if (seconds <= 60) {
-      acc.shortsList.push(video);
-    } else {
-      acc.longFormList.push(video);
-    }
-    return acc;
-  }, { shortsList: [], longFormList: [] });
-
   const calculateStats = (videoList: any[]) => {
     if (videoList.length === 0) return null;
     const totalViews = videoList.reduce((sum: number, v: any) => sum + v.views, 0);
@@ -67,41 +60,55 @@ export default function Home() {
     return { total: videoList.length, totalViews, totalLikes, totalComments, avgEngagement, viewTrend, top };
   };
 
-  const shortsStats = calculateStats(shortsList);
-  const longFormStats = calculateStats(longFormList);
-
   useEffect(() => {
-    supabaseBrowser.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      if (data.user) {
-        fetchChannels(data.user.id);
-        fetchSubscription(data.user.id);
+    isMounted.current = true;
+
+    const loadInitialUser = async () => {
+      const { data: { user } } = await supabaseBrowser.auth.getUser();
+      if (isMounted.current) {
+        setUser(user);
+        if (user) {
+          fetchChannels(user.id);
+          fetchSubscription(user.id);
+        }
       }
-    });
+    };
+
+    loadInitialUser();
 
     const { data: listener } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchChannels(session.user.id);
-        fetchSubscription(session.user.id);
-      } else {
-        setChannels([]);
-        setProfiles({});
-        setSelectedChannel(null);
-        setVideos([]);
-        setSubscription(null);
-        setAnalysisData(null);
-        setSavedAnalysis(null);
-        setHourlyMessage(null);
-        setMonthlyMessage(null);
-        setAnalyticsSummary(null);
-        setCurrentVideoFingerprint(null);
-        setReconnectingChannel(null);
+      if (isMounted.current) {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          fetchChannels(currentUser.id);
+          fetchSubscription(currentUser.id);
+        } else {
+          resetAllState();
+        }
       }
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      isMounted.current = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
+
+  const resetAllState = () => {
+    setChannels([]);
+    setProfiles({});
+    setSelectedChannel(null);
+    setVideos([]);
+    setSubscription(null);
+    setAnalysisData(null);
+    setSavedAnalysis(null);
+    setHourlyMessage(null);
+    setMonthlyMessage(null);
+    setAnalyticsSummary(null);
+    setCurrentVideoFingerprint(null);
+    setReconnectingChannel(null);
+  };
 
   const fetchChannels = async (userId: string) => {
     const { data } = await supabaseBrowser
@@ -208,7 +215,7 @@ export default function Home() {
     await supabaseBrowser.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: location.origin,
+        redirectTo: `${window.location.origin}/api/auth/callback`,
         scopes: 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly',
       },
     });
@@ -218,7 +225,7 @@ export default function Home() {
     if (!user) return;
     setAddingChannel(true);
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const redirectUri = `${location.origin}/api/youtube/callback`;
+    const redirectUri = `${window.location.origin}/api/youtube/callback`;
     const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         new URLSearchParams({
@@ -237,7 +244,7 @@ export default function Home() {
     if (!user) return;
     setAddingChannel(true);
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const redirectUri = `${location.origin}/api/youtube/callback`;
+    const redirectUri = `${window.location.origin}/api/youtube/callback`;
     const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         new URLSearchParams({
@@ -260,19 +267,7 @@ export default function Home() {
         alert('Failed to sign out. Please try again.');
         return;
       }
-      setUser(null);
-      setChannels([]);
-      setProfiles({});
-      setSelectedChannel(null);
-      setVideos([]);
-      setSubscription(null);
-      setAnalysisData(null);
-      setSavedAnalysis(null);
-      setHourlyMessage(null);
-      setMonthlyMessage(null);
-      setAnalyticsSummary(null);
-      setCurrentVideoFingerprint(null);
-      setReconnectingChannel(null);
+      resetAllState();
       window.location.href = '/';
     } catch (err) {
       console.error('Sign out error:', err);
@@ -301,24 +296,20 @@ export default function Home() {
     if (!user || !subscription) return;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
     const { data: usesThisMonth, error: monthError } = await supabaseBrowser
         .from('analysis_uses')
         .select('id')
         .eq('user_id', user.id)
         .gte('used_at', monthStart.toISOString());
-
     if (monthError) {
       console.error('Monthly limit check failed:', monthError);
       setMonthlyMessage('Error checking monthly limit');
       return;
     }
-
     const tier = subscription.status || 'free';
     const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
     const monthlyUsed = usesThisMonth?.length || 0;
-    const monthlyRemaining = monthlyLimit - monthlyUsed; // Fixed: added missing calculation
-
+    const monthlyRemaining = monthlyLimit - monthlyUsed;
     setMonthlyMessage(`${monthlyRemaining} of ${monthlyLimit} analyses remaining this month`);
 
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -328,16 +319,13 @@ export default function Home() {
         .eq('user_id', user.id)
         .gte('used_at', hourAgo.toISOString())
         .order('used_at', { ascending: false });
-
     if (hourError) {
       console.error('Hourly limit check failed:', hourError);
       setHourlyMessage('Error checking hourly limit');
       return;
     }
-
     const hourlyUsed = recentUses?.length || 0;
     const hourlyRemaining = 5 - hourlyUsed;
-
     if (hourlyRemaining < 5) {
       setHourlyMessage(`${hourlyRemaining} of 5 analyses remaining this hour`);
     } else {
@@ -347,6 +335,7 @@ export default function Home() {
 
   const analyzeChannel = async () => {
     if (videos.length === 0 || !selectedChannel || !user) return;
+
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const { data: usesThisMonth, error: monthError } = await supabaseBrowser
@@ -369,6 +358,7 @@ export default function Home() {
       });
       return;
     }
+
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const { data: recentUses, error: hourError } = await supabaseBrowser
         .from('analysis_uses')
@@ -388,6 +378,7 @@ export default function Home() {
       setAnalysisData({ error: "Too many requests. Please wait." });
       return;
     }
+
     if (savedAnalysis && currentVideoFingerprint) {
       const lastTime = new Date(savedAnalysis.timestamp);
       const hoursSince = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60);
@@ -400,8 +391,10 @@ export default function Home() {
         return;
       }
     }
+
     setAnalyzing(true);
     setAnalysisData(null);
+
     try {
       const profile = profiles[selectedChannel] || {};
       const res = await fetch('/api/ai/analyze', {
@@ -421,7 +414,11 @@ export default function Home() {
         setSavedAnalysis({ analysis: data.analysis, fixes: data.fixes, timestamp: nowIso });
         const { error: insertError } = await supabaseBrowser
             .from('analysis_uses')
-            .insert({ user_id: user.id, channel_id: selectedChannel, used_at: nowIso });
+            .insert({
+              user_id: user.id,
+              channel_id: selectedChannel,
+              used_at: nowIso,
+            });
         if (insertError) {
           console.error('Failed to record usage:', insertError);
         } else {
@@ -500,6 +497,9 @@ export default function Home() {
     );
   }
 
+  const shortsStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') <= 60));
+  const longFormStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') > 60));
+
   return (
       <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-black text-white">
         <div className="max-w-7xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -521,9 +521,7 @@ export default function Home() {
                     {channels.map((ch) => (
                         <div
                             key={ch.channel_id}
-                            className={`bg-gray-800/50 rounded-xl p-6 border transition cursor-pointer ${
-                                selectedChannel === ch.channel_id ? 'border-purple-500 shadow-purple-500/50 shadow-xl' : 'border-gray-700'
-                            }`}
+                            className={`bg-gray-800/50 rounded-xl p-6 border transition cursor-pointer ${selectedChannel === ch.channel_id ? 'border-purple-500 shadow-purple-500/50 shadow-xl' : 'border-gray-700'}`}
                             onClick={() => setSelectedChannel(ch.channel_id)}
                         >
                           <div className="flex justify-between items-start">
