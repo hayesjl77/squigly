@@ -1,41 +1,40 @@
-// app/api/auth/callback/route.ts
-import { createServerClient } from '@supabase/ssr';
+﻿import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
-    const requestUrl = new URL(request.url);
-    const code = requestUrl.searchParams.get('code');
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
 
-    if (code) {
-        const cookieStore = cookies();
+  if (code) {
+    const cookieStore = cookies();
 
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
-                    },
-                    setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value, options }) => {
-                            cookieStore.set(name, value, options);
-                        });
-                    },
-                },
-            }
-        );
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
 
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-        if (error) {
-            console.error('Session exchange failed:', error.message);
-            return NextResponse.redirect(
-                new URL('/?error=auth_failed', requestUrl.origin)
-            );
-        }
+    if (error) {
+      console.error('Session exchange failed:', error.message);
+      return NextResponse.redirect(
+        new URL('/?error=auth_failed', requestUrl.origin)
+      );
     }
+  }
 
-    return NextResponse.redirect(requestUrl.origin + '/');
+  return NextResponse.redirect(requestUrl.origin + '/');
 }
