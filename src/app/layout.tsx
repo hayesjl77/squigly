@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 import AuthHeader from '@/components/AuthHeader';
 import { SupabaseProvider } from '@/components/SupabaseProvider';
-import { createSupabaseServerClient } from '@/lib/supabase/server'; // ← new import
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,15 +15,18 @@ export default async function RootLayout({
                                          }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const supabase = await createSupabaseServerClient();
+    // Await the async server client
+    const supabase = await createServerSupabaseClient();
 
-    // Safer on server: use getUser() instead of getSession()
-    const { data: { user } } = await supabase.auth.getUser();
+    // Use getUser() for security (validates on server)
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
-    // For the provider, we can pass null or construct a minimal session-like object
-    // But since your provider expects Session | null, and we only need user, adjust if needed
-    // Here we fetch a full session for compatibility (some setups use getSession() after proxy/middleware)
-    const { data: { session } } = await supabase.auth.getSession(); // Use cautiously
+    // Optional: full session for provider compatibility
+    const {
+        data: { session },
+    } = await supabase.auth.getSession();
 
     return (
         <html lang="en">

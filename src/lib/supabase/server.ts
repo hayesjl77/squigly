@@ -2,7 +2,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-export async function createSupabaseServerClient() {
+export const createServerSupabaseClient = async () => {
+    // Await the cookies promise (required in Next.js 15+)
     const cookieStore = await cookies();
 
     return createServerClient(
@@ -19,11 +20,11 @@ export async function createSupabaseServerClient() {
                             cookieStore.set(name, value, options);
                         });
                     } catch (error) {
-                        // Ignore if called from a Server Component (no cookie write allowed there)
-                        console.warn('Cookie set attempted in Server Component:', error);
+                        // Ignore errors if called from a Server Component (cookie writes not allowed)
+                        // This is safe – the proxy/middleware handles actual refreshes
                     }
                 },
             },
         }
     );
-}
+};

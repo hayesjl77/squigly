@@ -5,10 +5,17 @@ import { useState, useEffect } from 'react';
 import { useSession } from '@/components/SupabaseProvider';
 import { supabaseBrowser } from '@/components/Providers';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function AuthHeader() {
+    const pathname = usePathname();
     const { user } = useSession();
+
+    // Hide full auth header on public/legal pages to prevent duplicates/missing
+    const publicPages = ['/pricing', '/terms', '/privacy', '/roadmap'];
+    if (publicPages.includes(pathname)) {
+        return null; // No header rendered on these routes
+    }
 
     const [subscription, setSubscription] = useState<any>({ status: 'free' });
     const [showUserMenu, setShowUserMenu] = useState(false);
@@ -78,17 +85,27 @@ export default function AuthHeader() {
         }
     };
 
+    const handleLogin = async () => {
+        const { error } = await supabaseBrowser.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/api/auth/callback`,
+            },
+        });
+
+        if (error) {
+            console.error('Login initiation failed:', error.message);
+            alert('Could not start login. Please try again.');
+        }
+    };
+
     return (
         <header className="border-b border-gray-800 p-6">
             <div className="max-w-7xl mx-auto flex justify-between items-center">
                 {/* Logo + Title + Navigation */}
                 <div className="flex items-center gap-8">
                     <div className="flex items-center gap-4">
-                        <img
-                            src="/images/Squigly_Logo.png"
-                            alt="Squigly Logo"
-                            className="h-12 w-auto drop-shadow-lg"
-                        />
+                        <img src="/images/Squigly_Logo.png" alt="Squigly Logo" className="h-12 w-auto drop-shadow-lg" />
                         <h1 className="text-4xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
                             Squigly
                         </h1>
@@ -106,10 +123,7 @@ export default function AuthHeader() {
                         <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">
                             Privacy
                         </Link>
-                        <Link
-                            href="/roadmap"
-                            className="text-xl text-purple-400 hover:text-purple-300 transition font-medium"
-                        >
+                        <Link href="/roadmap" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">
                             Roadmap
                         </Link>
                     </div>
@@ -139,11 +153,9 @@ export default function AuthHeader() {
                                         <div>
                                             <p className="font-bold text-lg">Your Plan</p>
                                             <p className="text-2xl font-bold capitalize mt-2">
-                                                {subscription.status === 'pro'
-                                                    ? 'Squigly Pro'
-                                                    : subscription.status === 'starter'
-                                                        ? 'Squigly Starter'
-                                                        : 'Free Plan'}
+                                                {subscription.status === 'pro' ? 'Squigly Pro' :
+                                                    subscription.status === 'starter' ? 'Squigly Starter' :
+                                                        'Free Plan'}
                                             </p>
                                         </div>
                                         <div className="flex flex-col gap-3">
@@ -151,9 +163,7 @@ export default function AuthHeader() {
                                                 <button
                                                     onClick={handleManageBilling}
                                                     disabled={isBillingLoading}
-                                                    className={`w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition font-medium ${
-                                                        isBillingLoading ? 'opacity-70 cursor-wait' : ''
-                                                    }`}
+                                                    className={`w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition font-medium ${isBillingLoading ? 'opacity-70 cursor-wait' : ''}`}
                                                 >
                                                     {isBillingLoading ? 'Opening Billing...' : 'Manage Billing'}
                                                 </button>
@@ -178,9 +188,12 @@ export default function AuthHeader() {
                         </div>
                     ) : (
                         <div className="flex gap-4">
-                            <Link href="/login" className="px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition">
+                            <button
+                                onClick={handleLogin}
+                                className="px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition"
+                            >
                                 Log in
-                            </Link>
+                            </button>
                             <Link
                                 href="/signup"
                                 className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition font-medium"
