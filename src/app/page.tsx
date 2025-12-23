@@ -253,8 +253,31 @@ export default function Home() {
   };
 
   const handleSignOut = async () => {
-    await supabaseBrowser.auth.signOut();
-    window.location.href = '/';
+    try {
+      const { error } = await supabaseBrowser.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        alert('Failed to sign out. Please try again.');
+        return;
+      }
+      setUser(null);
+      setChannels([]);
+      setProfiles({});
+      setSelectedChannel(null);
+      setVideos([]);
+      setSubscription(null);
+      setAnalysisData(null);
+      setSavedAnalysis(null);
+      setHourlyMessage(null);
+      setMonthlyMessage(null);
+      setAnalyticsSummary(null);
+      setCurrentVideoFingerprint(null);
+      setReconnectingChannel(null);
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Sign out error:', err);
+      alert('Failed to sign out. Please try again.');
+    }
   };
 
   const handleProfileSave = async () => {

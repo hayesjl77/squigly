@@ -17,12 +17,15 @@ export default function AuthHeader() {
             setUser(data.user);
 
             if (data.user) {
-                const { data: subData } = await supabaseBrowser
+                const { data: subData, error } = await supabaseBrowser
                     .from('subscriptions')
                     .select('*')
                     .eq('user_id', data.user.id)
                     .single();
 
+                if (error) {
+                    console.error('Error fetching subscription:', error);
+                }
                 setSubscription(subData || { status: 'free' });
             }
         };
@@ -34,12 +37,15 @@ export default function AuthHeader() {
             setUser(currentUser);
 
             if (currentUser) {
-                const { data: subData } = await supabaseBrowser
+                const { data: subData, error } = await supabaseBrowser
                     .from('subscriptions')
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .single();
 
+                if (error) {
+                    console.error('Error fetching subscription:', error);
+                }
                 setSubscription(subData || { status: 'free' });
             } else {
                 setSubscription({ status: 'free' });
@@ -52,8 +58,21 @@ export default function AuthHeader() {
     }, []);
 
     const handleSignOut = async () => {
-        await supabaseBrowser.auth.signOut();
-        window.location.href = '/';
+        try {
+            const { error } = await supabaseBrowser.auth.signOut();
+            if (error) {
+                console.error('Sign out error:', error);
+                alert('Failed to sign out. Please try again.');
+                return;
+            }
+            setUser(null);
+            setSubscription({ status: 'free' });
+            setShowUserMenu(false);
+            window.location.href = '/';
+        } catch (err) {
+            console.error('Sign out error:', err);
+            alert('Failed to sign out. Please try again.');
+        }
     };
 
     const handleManageBilling = async () => {
