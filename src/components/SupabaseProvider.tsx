@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabaseBrowser } from '@/components/Providers'; // Reuse your existing client
+import { supabaseBrowser } from '@/components/Providers';
 
 interface SessionContextType {
     session: Session | null;
@@ -25,7 +25,6 @@ export function SupabaseProvider({
     const [session, setSession] = useState<Session | null>(initialSession);
 
     useEffect(() => {
-        // Keep in sync if auth changes in another tab/window
         const { data: listener } = supabaseBrowser.auth.onAuthStateChange((_event, newSession) => {
             setSession(newSession);
         });

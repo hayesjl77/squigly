@@ -1,9 +1,8 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import AuthHeader from '@/components/AuthHeader';
-import { SupabaseProvider } from '@/components/SupabaseProvider'; // ← new import
+import { SupabaseProvider } from '@/components/SupabaseProvider';
+import { createSupabaseServerClient } from '@/lib/supabase/server'; // ← new import
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,8 +15,15 @@ export default async function RootLayout({
                                          }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const supabase = createServerComponentClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
+    const supabase = await createSupabaseServerClient();
+
+    // Safer on server: use getUser() instead of getSession()
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // For the provider, we can pass null or construct a minimal session-like object
+    // But since your provider expects Session | null, and we only need user, adjust if needed
+    // Here we fetch a full session for compatibility (some setups use getSession() after proxy/middleware)
+    const { data: { session } } = await supabase.auth.getSession(); // Use cautiously
 
     return (
         <html lang="en">
