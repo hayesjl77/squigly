@@ -5,16 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d109e0e4-b16e-4b78-9fd3-2ba60de91df6" name="Changes" comment="minor">
-      <change afterPath="$PROJECT_DIR$/src/app/api/auth/callback/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/squigly.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/AuthHeader.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/AuthHeader.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/supabase/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/supabase/server.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/middleware.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/auth/callback/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/callback/route.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -111,7 +103,7 @@
       <workItem from="1766390571628" duration="21909000" />
       <workItem from="1766455005637" duration="808000" />
       <workItem from="1766455833726" duration="78000" />
-      <workItem from="1766455924201" duration="5062000" />
+      <workItem from="1766455924201" duration="5527000" />
     </task>
     <task id="LOCAL-00001" summary="minor">
       <option name="closed" value="true" />
