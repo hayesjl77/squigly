@@ -1,4 +1,5 @@
 // app/api/youtube/callback/route.ts
+// Force redeploy - 2025-12-23 - test callback route
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
