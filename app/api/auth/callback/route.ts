@@ -1,4 +1,5 @@
-﻿import { createServerClient } from '@supabase/ssr';
+﻿// app/api/auth/callback/route.ts
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -7,23 +8,24 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code');
 
   if (code) {
-    const cookieStore = cookies();
+    // Await the cookies promise
+    const cookieStore = await cookies();
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return cookieStore.getAll();
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options);
+              });
+            },
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
+        }
     );
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
     if (error) {
       console.error('Session exchange failed:', error.message);
       return NextResponse.redirect(
-        new URL('/?error=auth_failed', requestUrl.origin)
+          new URL('/?error=auth_failed', requestUrl.origin)
       );
     }
   }
