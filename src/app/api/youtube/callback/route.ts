@@ -1,84 +1,110 @@
-// src/app/api/youtube/callback/route.ts
+// app/api/youtube/callback/route.ts
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET(request: Request) {
+    const url = new URL(request.url);
+    const code = url.searchParams.get('code');
+    const stateParam = url.searchParams.get('state');
+
+    if (!code) {
+        console.error('Missing authorization code');
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=missing_code`);
+    }
+
+    if (!stateParam) {
+        console.error('Missing state parameter');
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=missing_state`);
+    }
+
+    let state;
     try {
-        const url = new URL(request.url);
-        const code = url.searchParams.get('code');
-        const state = JSON.parse(url.searchParams.get('state') || '{}');
+        state = JSON.parse(stateParam);
+    } catch (e) {
+        console.error('Invalid state JSON:', e);
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=invalid_state`);
+    }
 
-        if (!code || !state.userId) {
-            return NextResponse.json({ error: 'Missing code or userId' }, { status: 400 });
-        }
+    if (!state.userId) {
+        console.error('No userId in state');
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=no_user_id`);
+    }
 
-        // Exchange code for access token
-        const clientId = process.env.GOOGLE_CLIENT_ID!;
-        const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`;
+    // Exchange code for tokens
+    const tokenUrl = 'https://oauth2.googleapis.com/token';
+    const tokenBody = new URLSearchParams({
+        code: code,
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`,
+        grant_type: 'authorization_code',
+    });
 
-        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    try {
+        const tokenRes = await fetch(tokenUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                code,
-                client_id: clientId,
-                client_secret: clientSecret,
-                redirect_uri: redirectUri,
-                grant_type: 'authorization_code',
-            }),
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: tokenBody.toString(),
         });
 
         const tokenData = await tokenRes.json();
 
         if (!tokenRes.ok) {
-            console.error('Token exchange error:', tokenData);
-            return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 });
+            console.error('Token exchange failed:', {
+                status: tokenRes.status,
+                response: tokenData,
+            });
+            const errorMsg = tokenData.error_description || tokenData.error || 'Unknown token error';
+            return NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_APP_URL}/?error=token_exchange&msg=${encodeURIComponent(errorMsg)}`
+            );
         }
 
-        // Get channel info
-        const channelRes = await fetch('https://youtube.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', {
-            headers: {
-                Authorization: `Bearer ${tokenData.access_token}`,
-            },
-        });
+        // Proceed with channel fetch and save (your existing logic)
+        const channelRes = await fetch(
+            'https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&mine=true',
+            {
+                headers: { Authorization: `Bearer ${tokenData.access_token}` },
+            }
+        );
 
         const channelData = await channelRes.json();
 
         if (!channelRes.ok || !channelData.items?.[0]) {
-            console.error('Channel fetch error:', channelData);
-            return NextResponse.json({ error: 'Failed to get channel info' }, { status: 500 });
+            console.error('Channel fetch failed:', channelData);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=channel_fetch`);
         }
 
         const channel = channelData.items[0];
         const channelId = channel.id;
         const channelTitle = channel.snippet.title;
 
-        // Save or update token in Supabase
-        const { error } = await supabaseAdmin
+        // Save to Supabase
+        const { error: upsertError } = await supabaseAdmin
             .from('youtube_tokens')
             .upsert({
                 user_id: state.userId,
                 channel_id: channelId,
                 channel_title: channelTitle,
                 access_token: tokenData.access_token,
-                refresh_token: tokenData.refresh_token,
+                refresh_token: tokenData.refresh_token || null,
                 scope: tokenData.scope,
                 token_type: tokenData.token_type,
                 expiry_date: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
             }, {
-                onConflict: 'user_id, channel_id'  // Update if already exists
+                onConflict: 'user_id, channel_id',
             });
 
-        if (error) {
-            console.error('Token save error:', error);
-            return NextResponse.json({ error: 'Failed to save channel' }, { status: 500 });
+        if (upsertError) {
+            console.error('Supabase upsert error:', upsertError);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=save_channel`);
         }
 
-        // Redirect back to dashboard
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/`);
     } catch (err) {
-        console.error('Callback error:', err);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('Callback processing error:', err);
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=internal_error`);
     }
 }
