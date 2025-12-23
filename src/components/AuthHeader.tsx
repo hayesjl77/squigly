@@ -11,10 +11,14 @@ export default function AuthHeader() {
     const pathname = usePathname();
     const { user } = useSession();
 
-    // Hide full auth header on public/legal pages to prevent duplicates/missing
+    // Hide full auth header on:
+    // 1. Public/legal pages
+    // 2. Root landing when not logged in (prevents "logged in" profile on sign-in screen)
     const publicPages = ['/pricing', '/terms', '/privacy', '/roadmap'];
-    if (publicPages.includes(pathname)) {
-        return null; // No header rendered on these routes
+    const isRootUnauth = pathname === '/' && !user;
+
+    if (publicPages.includes(pathname) || isRootUnauth) {
+        return null; // No header rendered in these cases
     }
 
     const [subscription, setSubscription] = useState<any>({ status: 'free' });
