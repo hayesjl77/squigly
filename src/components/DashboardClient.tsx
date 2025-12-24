@@ -210,8 +210,10 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 .select('analysis_text, fixes, created_at')
                 .eq('user_id', user.id)
                 .eq('channel_id', channelId)
-                .single();
+                .maybeSingle();  // ← Change to .maybeSingle() instead of .single()
+
             if (error && error.code !== 'PGRST116') throw error;
+
             if (data) {
                 const saved = { analysis: data.analysis_text, fixes: data.fixes, timestamp: data.created_at };
                 setSavedAnalysis(saved);
