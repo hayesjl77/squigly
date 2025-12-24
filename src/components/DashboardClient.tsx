@@ -254,7 +254,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         if (!user) return;
         setAddingChannel(true);
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        const redirectUri = 'https://squigly.vercel.app/api/youtube/callback';  // No trailing slash, no www, https only
+        const redirectUri = `${window.location.origin}/api/youtube/cb-test`;  // No trailing slash, no www, https only
         // const redirectUri = `${window.location.origin}/api/youtube/callback`;
         const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
