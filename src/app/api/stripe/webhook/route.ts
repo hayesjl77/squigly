@@ -1,7 +1,12 @@
 // src/app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';  // ← This line fixes the type error
+import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+
+// Instantiate the Stripe client here (use secret key)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-12-15.clover',  // Match your other Stripe usages
+});
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -37,7 +42,7 @@ export async function POST(request: NextRequest) {
             .from('subscriptions')
             .upsert({
                 user_id: userId,
-                status: 'active',  // Or 'trialing' / 'past_due' based on event
+                status: 'active',
                 stripe_customer_id: customerId,
                 stripe_subscription_id: subscriptionId,
                 tier: tier || 'unknown',
