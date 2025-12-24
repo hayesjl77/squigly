@@ -8,7 +8,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export default function AuthHeader() {
     const pathname = usePathname();
-    const { user } = useSession();
+    const { user, isLoading: isSessionLoading } = useSession();  // ← Now uses isLoading from provider
 
     // Hide header completely on root landing when NOT logged in
     if (pathname === '/' && !user) {
@@ -30,13 +30,13 @@ export default function AuthHeader() {
         const fetchSub = async () => {
             const { data, error } = await supabaseBrowser
                 .from('subscriptions')
-                .select('*')
+                .select('*')  // Fetch all fields including stripe_customer_id
                 .eq('user_id', user.id)
                 .single();
 
             if (!error && data) {
                 setSubscription(data);
-                console.log('Full subscription data from DB:', data);  // ← ADD THIS LOG
+                console.log('Full subscription data from DB:', data);  // ← Debug log - remove later if wanted
             } else {
                 console.error('Subscription fetch error:', error);
                 setSubscription({ status: 'free' });
@@ -117,7 +117,12 @@ export default function AuthHeader() {
 
                 {/* Auth / User Section */}
                 <div className="flex items-center gap-4">
-                    {user ? (
+                    {isSessionLoading ? (
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-gray-700 rounded-full animate-pulse" />
+                            <span className="text-gray-400">Loading...</span>
+                        </div>
+                    ) : user ? (
                         <div className="relative">
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -147,7 +152,7 @@ export default function AuthHeader() {
                                         </div>
 
                                         <div className="flex flex-col gap-3">
-                                            {/* Show Manage Billing if there is ANY Stripe customer ID (covers test subs) */}
+                                            {/* Show Manage Billing if there is ANY Stripe customer ID */}
                                             {subscription.stripe_customer_id ? (
                                                 <button
                                                     onClick={handleManageBilling}

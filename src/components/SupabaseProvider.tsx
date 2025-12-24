@@ -1,4 +1,3 @@
-// src/components/SupabaseProvider.tsx
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -8,11 +7,13 @@ import { supabaseBrowser } from '@/components/Providers';
 interface SessionContextType {
     session: Session | null;
     user: User | null;
+    isLoading: boolean;  // ← New: to handle loading state
 }
 
 const SessionContext = createContext<SessionContextType>({
     session: null,
     user: null,
+    isLoading: true,
 });
 
 export function SupabaseProvider({
@@ -23,10 +24,20 @@ export function SupabaseProvider({
     initialSession: Session | null;
 }) {
     const [session, setSession] = useState<Session | null>(initialSession);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // Force refresh session on mount (fixes stale initialSession)
+        supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setIsLoading(false);
+        });
+
+        // Listen for changes
         const { data: listener } = supabaseBrowser.auth.onAuthStateChange((_event, newSession) => {
+            console.log('Auth state changed:', { newSession });  // ← Debug log
             setSession(newSession);
+            setIsLoading(false);
         });
 
         return () => {
@@ -37,7 +48,7 @@ export function SupabaseProvider({
     const user = session?.user ?? null;
 
     return (
-        <SessionContext.Provider value={{ session, user }}>
+        <SessionContext.Provider value={{ session, user, isLoading }}>
             {children}
         </SessionContext.Provider>
     );
