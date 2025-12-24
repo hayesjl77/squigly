@@ -6,27 +6,41 @@ import stripe from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
     const cookieStore = cookies();
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,  // Use service role for server
-        { cookies: () => cookieStore }
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,  // Service role for full access
+        {
+            cookies: {
+                get(name) {
+                    return cookieStore.get(name)?.value;
+                },
+                set(name, value, options) {
+                    cookieStore.set({ name, value, ...options });
+                },
+                remove(name, options) {
+                    cookieStore.delete({ name, ...options });
+                },
+            },
+        }
     );
 
     // Get authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Unauthorized - no user:', userError);
         return NextResponse.json({ error: 'Unauthorized - no user' }, { status: 401 });
     }
 
-    // Fetch subscription from Supabase
-    const { data: subscription, error } = await supabase
+    // Fetch subscription
+    const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
         .select('stripe_customer_id')
         .eq('user_id', user.id)
         .single();
 
-    if (error || !subscription?.stripe_customer_id) {
-        console.error('No subscription or customer ID found:', error);
+    if (subError || !subscription?.stripe_customer_id) {
+        console.error('No subscription or customer ID found:', subError);
         return NextResponse.json({ error: 'No billing information found' }, { status: 404 });
     }
 
@@ -35,7 +49,7 @@ export async function POST(request: NextRequest) {
     try {
         const session = await stripe.billingPortal.sessions.create({
             customer: customerId,
-            return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/pricing`,  // Back to pricing after
+            return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/pricing`,
         });
 
         return NextResponse.json({ url: session.url });
