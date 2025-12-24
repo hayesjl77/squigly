@@ -23,7 +23,7 @@ export default function Pricing() {
         fetchSubscription();
     }, []);
 
-    const handleCheckout = async (tier: 'starter' | 'pro' | 'test') => {
+    const handleCheckout = async (tier: 'starter' | 'pro') => {
         const { data: { user } } = await supabaseBrowser.auth.getUser();
         if (!user) {
             alert("Please sign in first");
@@ -66,7 +66,7 @@ export default function Pricing() {
                         </div>
                         <div className="flex items-center gap-6">
                             <Link href="/" className="text-xl text-gray-300 hover:text-white transition">Home</Link>
-                            <Link href="/pricing" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">Pricing</Link>
+                            <Link href="/pricing" className="text-xl text-gray-300 hover:text-white transition">Pricing</Link>
                             <Link href="/terms" className="text-xl text-gray-300 hover:text-white transition">Terms</Link>
                             <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">Privacy</Link>
                             <Link href="/roadmap" className="text-xl text-gray-300 hover:text-white transition">Roadmap</Link>
@@ -126,18 +126,6 @@ export default function Pricing() {
                                 {loading ? 'Loading...' : currentTier === 'pro' ? 'Current Plan' : currentTier === 'starter' ? 'Upgrade to Pro' : 'Choose Pro'}
                             </button>
                         </div>
-                    </div>
-
-                    {/* TEMP TEST BUTTON - remove after test */}
-                    <div className="text-center mt-16">
-                        <p className="text-xl text-yellow-400 mb-4">Development Test Only (Live $1 purchase + instant refund)</p>
-                        <button
-                            onClick={() => handleCheckout('test')}
-                            disabled={loading}
-                            className="px-12 py-6 bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700 text-white font-bold text-xl rounded-2xl shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50"
-                        >
-                            {loading ? 'Loading...' : 'Test $1 Live Purchase'}
-                        </button>
                     </div>
 
                     <div className="text-center mt-20 text-gray-400">
