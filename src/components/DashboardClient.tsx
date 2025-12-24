@@ -357,8 +357,13 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                     channel_name: tempProfile.channel_name,
                     channel_about: tempProfile.channel_about,
                     goal: tempProfile.goal,
+                }, {
+                    onConflict: 'user_id, channel_id',  // ← This is the key fix: tell Supabase the unique constraint
+                    ignoreDuplicates: false             // Ensure it updates instead of skipping
                 });
-            console.log('Profile save result:', { error });  // ← New log to see if upsert fails
+
+            console.log('Profile save result:', { error });
+
             if (!error) {
                 setProfiles(prev => ({ ...prev, [editingChannel]: tempProfile }));
                 setEditingChannel(null);
@@ -367,7 +372,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             }
         } catch (err) {
             console.error('Profile save error:', err);
-            alert('Failed to save profile. Check console for details.');
+            alert('Failed to save profile: ' + (err instanceof Error ? err.message : 'Unknown error'));
         }
     };
 
