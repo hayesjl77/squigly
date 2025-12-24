@@ -8,7 +8,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export default function AuthHeader() {
     const pathname = usePathname();
-    const { user, isLoading: isSessionLoading } = useSession();  // ← Now uses isLoading from provider
+    const { user, isLoading: isSessionLoading } = useSession();
 
     // Hide header completely on root landing when NOT logged in
     if (pathname === '/' && !user) {
@@ -30,13 +30,13 @@ export default function AuthHeader() {
         const fetchSub = async () => {
             const { data, error } = await supabaseBrowser
                 .from('subscriptions')
-                .select('*')  // Fetch all fields including stripe_customer_id
+                .select('*') // Fetch all fields including stripe_customer_id
                 .eq('user_id', user.id)
                 .single();
 
             if (!error && data) {
                 setSubscription(data);
-                console.log('Full subscription data from DB:', data);  // ← Debug log - remove later if wanted
+                console.log('Full subscription data from DB:', data); // Debug log - remove later if wanted
             } else {
                 console.error('Subscription fetch error:', error);
                 setSubscription({ status: 'free' });
@@ -109,6 +109,7 @@ export default function AuthHeader() {
                     <div className="flex items-center gap-6">
                         <Link href="/" className="text-xl text-gray-300 hover:text-white transition">Home</Link>
                         <Link href="/pricing" className="text-xl text-gray-300 hover:text-white transition">Pricing</Link>
+                        <Link href="/about" className="text-xl text-gray-300 hover:text-white transition">About SquigAI</Link>
                         <Link href="/terms" className="text-xl text-gray-300 hover:text-white transition">Terms</Link>
                         <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">Privacy</Link>
                         <Link href="/roadmap" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">Roadmap</Link>
