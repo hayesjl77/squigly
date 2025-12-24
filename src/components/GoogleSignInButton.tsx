@@ -8,7 +8,7 @@ export default function GoogleSignInButton() {
         await supabaseBrowser.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/api/auth-callback`,
+                redirectTo: `${window.location.origin}/api/authcb`,
                 scopes:
                     'https://www.googleapis.com/auth/youtube.readonly ' +
                     'https://www.googleapis.com/auth/yt-analytics.readonly ' +
