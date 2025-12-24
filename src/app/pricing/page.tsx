@@ -1,4 +1,3 @@
-// src/app/pricing/page.tsx
 'use client';
 
 import { useState, useEffect } from "react";
@@ -24,7 +23,7 @@ export default function Pricing() {
         fetchSubscription();
     }, []);
 
-    const handleCheckout = async (tier: 'starter' | 'pro') => {
+    const handleCheckout = async (tier: 'starter' | 'pro' | 'test') => {
         const { data: { user } } = await supabaseBrowser.auth.getUser();
         if (!user) {
             alert("Please sign in first");
@@ -66,21 +65,11 @@ export default function Pricing() {
                             </h1>
                         </div>
                         <div className="flex items-center gap-6">
-                            <Link href="/" className="text-xl text-gray-300 hover:text-white transition">
-                                Home
-                            </Link>
-                            <Link href="/pricing" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">
-                                Pricing
-                            </Link>
-                            <Link href="/terms" className="text-xl text-gray-300 hover:text-white transition">
-                                Terms
-                            </Link>
-                            <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">
-                                Privacy
-                            </Link>
-                            <Link href="/roadmap" className="text-xl text-gray-300 hover:text-white transition">
-                                Roadmap
-                            </Link>
+                            <Link href="/" className="text-xl text-gray-300 hover:text-white transition">Home</Link>
+                            <Link href="/pricing" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">Pricing</Link>
+                            <Link href="/terms" className="text-xl text-gray-300 hover:text-white transition">Terms</Link>
+                            <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">Privacy</Link>
+                            <Link href="/roadmap" className="text-xl text-gray-300 hover:text-white transition">Roadmap</Link>
                         </div>
                     </div>
                 </div>
@@ -93,18 +82,14 @@ export default function Pricing() {
                         <h1 className="text-6xl font-extrabold mb-6 bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
                             Choose Your Plan
                         </h1>
-                        <p className="text-2xl text-gray-300">
-                            Unlock the full power of Squigly's AI coaching
-                        </p>
+                        <p className="text-2xl text-gray-300">Unlock the full power of Squigly's AI coaching</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
                         {/* Starter Plan */}
                         <div className={`bg-gray-800/50 rounded-3xl p-10 border ${currentTier === 'starter' ? 'border-purple-500' : 'border-gray-700'} hover:border-purple-500 transition`}>
                             <h2 className="text-4xl font-bold mb-4">Squigly Starter</h2>
-                            <p className="text-6xl font-extrabold mb-8">
-                                $9<span className="text-2xl font-normal text-gray-400">/month</span>
-                            </p>
+                            <p className="text-6xl font-extrabold mb-8">$9<span className="text-2xl font-normal text-gray-400">/month</span></p>
                             <ul className="space-y-4 mb-10 text-lg">
                                 <li className="flex items-center gap-3">✓ Up to <strong>100 AI analyses/month</strong></li>
                                 <li className="flex items-center gap-3">✓ Full God Mode coaching</li>
@@ -123,13 +108,9 @@ export default function Pricing() {
 
                         {/* Pro Plan */}
                         <div className={`bg-gradient-to-b from-purple-900/50 to-gray-800/50 rounded-3xl p-10 border-2 ${currentTier === 'pro' ? 'border-purple-500' : 'border-purple-500'} shadow-2xl shadow-purple-500/20 relative`}>
-                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-2 rounded-full text-sm font-bold">
-                                MOST POPULAR
-                            </div>
+                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-2 rounded-full text-sm font-bold">MOST POPULAR</div>
                             <h2 className="text-4xl font-bold mb-4">Squigly Pro</h2>
-                            <p className="text-6xl font-extrabold mb-8">
-                                $29<span className="text-2xl font-normal text-gray-400">/month</span>
-                            </p>
+                            <p className="text-6xl font-extrabold mb-8">$29<span className="text-2xl font-normal text-gray-400">/month</span></p>
                             <ul className="space-y-4 mb-10 text-lg">
                                 <li className="flex items-center gap-3">✓ Up to <strong>500 AI analyses/month</strong></li>
                                 <li className="flex items-center gap-3">✓ Everything in Starter</li>
@@ -145,6 +126,18 @@ export default function Pricing() {
                                 {loading ? 'Loading...' : currentTier === 'pro' ? 'Current Plan' : currentTier === 'starter' ? 'Upgrade to Pro' : 'Choose Pro'}
                             </button>
                         </div>
+                    </div>
+
+                    {/* TEMP TEST BUTTON - remove after test */}
+                    <div className="text-center mt-16">
+                        <p className="text-xl text-yellow-400 mb-4">Development Test Only (Live $1 purchase + instant refund)</p>
+                        <button
+                            onClick={() => handleCheckout('test')}
+                            disabled={loading}
+                            className="px-12 py-6 bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700 text-white font-bold text-xl rounded-2xl shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50"
+                        >
+                            {loading ? 'Loading...' : 'Test $1 Live Purchase'}
+                        </button>
                     </div>
 
                     <div className="text-center mt-20 text-gray-400">
