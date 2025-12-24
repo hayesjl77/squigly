@@ -1,4 +1,5 @@
-﻿import { createServerClient } from '@supabase/ssr';
+﻿// src/app/api/authcb/route.ts
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -11,8 +12,10 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code');
 
   if (!code) {
-    console.error('No code provided');
-    return NextResponse.redirect(new URL('/login?error=no_code', requestUrl.origin));
+    console.error('No authorization code provided');
+    return NextResponse.redirect(
+        new URL('/login?error=no_code', requestUrl.origin)
+    );
   }
 
   try {
@@ -23,26 +26,51 @@ export async function GET(request: Request) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           cookies: {
-            getAll() { return cookieStore.getAll(); },
+            getAll() {
+              return cookieStore.getAll();
+            },
             setAll(cookiesToSet) {
-              cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options);
+              });
             },
           },
         }
     );
 
+    console.log('Supabase client created successfully');
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
       console.error('Session exchange failed:', error.message);
-      return NextResponse.redirect(new URL(`/login?error=auth_failed&msg=${encodeURIComponent(error.message)}`, requestUrl.origin));
+      return NextResponse.redirect(
+          new URL(
+              `/login?error=auth_failed&msg=${encodeURIComponent(error.message)}`,
+              requestUrl.origin
+          )
+      );
     }
 
     console.log('Session exchanged successfully');
-    return NextResponse.redirect(requestUrl.origin + '/');  // Redirect to dashboard/home
-  } catch (err) {
+
+    // Optional: Log session details for debugging (remove in production if desired)
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('Session after exchange:', session ? 'SET' : 'NOT SET', {
+      userId: session?.user?.id,
+      expiresAt: session?.expires_at,
+    });
+
+    // Redirect to home/dashboard on success
+    return NextResponse.redirect(requestUrl.origin + '/');
+  } catch (err: unknown) {
     console.error('Handler error:', err);
-    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.redirect(new URL(`/login?error=internal&msg=${encodeURIComponent(errorMsg)}`, requestUrl.origin));
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.redirect(
+        new URL(
+            `/login?error=internal&msg=${encodeURIComponent(errorMessage)}`,
+            requestUrl.origin
+        )
+    );
   }
 }
