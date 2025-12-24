@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';  // ← ADD THIS LINE
+// src/app/api/stripe/checkout/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import stripe from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
@@ -6,17 +7,11 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { userId, tier } = body;
 
-        if (!userId || !tier || !['starter', 'pro', 'test'].includes(tier)) {  // ← Add 'test'
+        if (!userId || !tier || !['starter', 'pro'].includes(tier)) {
             return NextResponse.json({ error: 'Missing or invalid userId/tier' }, { status: 400 });
         }
 
-        let priceId;
-        if (tier === 'test') {
-            // TEMP: Live $1 test product - REMOVE AFTER TEST
-            priceId = 'price_1ShmAu506PTuQJZKCIFPJc8c';  // ← YOUR NEW LIVE $1 PRICE ID
-        } else {
-            priceId = tier === 'pro' ? process.env.STRIPE_PRICE_ID_PRO : process.env.STRIPE_PRICE_ID_STARTER;
-        }
+        const priceId = tier === 'pro' ? process.env.STRIPE_PRICE_ID_PRO : process.env.STRIPE_PRICE_ID_STARTER;
 
         if (!priceId) {
             console.error(`Missing price ID for tier: ${tier}`);
@@ -25,12 +20,12 @@ export async function POST(request: NextRequest) {
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
-            mode: 'subscription',  // Use 'payment' for one-time test (or 'subscription' if you made it recurring)
+            mode: 'subscription',  // Real recurring mode
             line_items: [{ price: priceId, quantity: 1 }],
             success_url: `${process.env.NEXT_PUBLIC_SITE_URL}?success=true`,
             cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}?canceled=true`,
             client_reference_id: userId,
-            metadata: { tier },  // ← Keeps metadata.tier = 'test' for webhook
+            metadata: { tier },
         });
 
         if (!session.url) {
