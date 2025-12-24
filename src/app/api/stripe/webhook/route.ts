@@ -3,11 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// Instantiate the Stripe client here (use secret key)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover',  // Match your other Stripe usages
-});
-
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
@@ -23,12 +18,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Webhook Error' }, { status: 400 });
     }
 
-    // Handle the event
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
 
         const userId = session.client_reference_id;
-        const tier = session.metadata?.tier;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string | null;
 
@@ -37,15 +30,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        // Upsert subscription row
+        // Upsert subscription row - using existing 'status' column, no 'tier'
         const { error } = await supabaseAdmin
             .from('subscriptions')
             .upsert({
                 user_id: userId,
-                status: 'active',
+                status: 'active',  // Sets to active on successful payment
                 stripe_customer_id: customerId,
                 stripe_subscription_id: subscriptionId,
-                tier: tier || 'unknown',
                 updated_at: new Date().toISOString(),
             }, {
                 onConflict: 'user_id',
@@ -59,6 +51,5 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // Return 200 to acknowledge receipt
     return NextResponse.json({ received: true });
 }
