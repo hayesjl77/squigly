@@ -1,4 +1,3 @@
-// src/components/DashboardClient.tsx
 'use client';
 
 import { useState, useEffect, useRef } from "react";
@@ -27,13 +26,11 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     const [analyticsSummary, setAnalyticsSummary] = useState<any>(null);
     const [currentVideoFingerprint, setCurrentVideoFingerprint] = useState<string | null>(null);
     const [reconnectingChannel, setReconnectingChannel] = useState<string | null>(null);
-    const [hasConnectedChannel, setHasConnectedChannel] = useState<boolean | null>(null); // NEW gating
+    const [hasConnectedChannel, setHasConnectedChannel] = useState<boolean | null>(null);
 
     const isMounted = useRef(true);
 
-    // ──────────────────────────────────────────────────────────────
-    // Helpers (unchanged)
-    // ──────────────────────────────────────────────────────────────
+    // Helpers
     const formatTimestamp = (isoString: string) => {
         const date = new Date(isoString);
         return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(date);
@@ -83,12 +80,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         setReconnectingChannel(null);
     };
 
-    // ──────────────────────────────────────────────────────────────
-    // Auth + initial load (unchanged)
-    // ──────────────────────────────────────────────────────────────
+    // Auth + initial load
     useEffect(() => {
         isMounted.current = true;
-
         const loadInitialUser = async () => {
             const { data: { user } } = await supabaseBrowser.auth.getUser();
             if (isMounted.current) {
@@ -99,7 +93,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 }
             }
         };
-
         loadInitialUser();
 
         const { data: listener } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
@@ -121,10 +114,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         };
     }, []);
 
-    // NEW: Gate check - has any YouTube channel connected?
+    // Gate check - has any YouTube channel connected?
     useEffect(() => {
         if (!user?.id) return;
-
         const checkConnection = async () => {
             try {
                 const { data, error } = await supabaseBrowser
@@ -132,7 +124,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                     .select('id')
                     .eq('user_id', user.id)
                     .limit(1);
-
                 if (error) throw error;
                 setHasConnectedChannel(!!data?.length);
             } catch (err) {
@@ -140,13 +131,10 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 setHasConnectedChannel(false);
             }
         };
-
         checkConnection();
     }, [user?.id]);
 
-    // ──────────────────────────────────────────────────────────────
-    // Fetch & handlers (unchanged)
-    // ──────────────────────────────────────────────────────────────
+    // Fetch functions
     const fetchChannels = async (userId: string) => {
         const { data } = await supabaseBrowser
             .from('youtube_tokens')
@@ -204,12 +192,24 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     };
 
     const fetchSubscription = async (userId: string) => {
-        const { data } = await supabaseBrowser
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-        setSubscription(data || { status: 'free' });
+        try {
+            const { data, error } = await supabaseBrowser
+                .from('subscriptions')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (error) {
+                console.error('Subscription fetch error:', error);
+                setSubscription({ status: 'free' }); // Default to free on error/no row
+                return;
+            }
+
+            setSubscription(data || { status: 'free' });
+        } catch (err) {
+            console.error('Unexpected subscription fetch error:', err);
+            setSubscription({ status: 'free' });
+        }
     };
 
     const fetchAnalytics = async (channelId: string) => {
@@ -220,6 +220,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 .eq('channel_id', channelId)
                 .eq('user_id', user?.id)
                 .single();
+
             if (!tokenData?.access_token) return;
 
             const res = await fetch('/api/youtube/analytics', {
@@ -231,6 +232,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                     refresh_token: tokenData.refresh_token || null,
                 }),
             });
+
             const data = await res.json();
 
             if (res.ok) {
@@ -254,8 +256,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         if (!user) return;
         setAddingChannel(true);
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        const redirectUri = `${window.location.origin}/api/ytcallback`;
+        const redirectUri = `${window.location.origin}/api/ytcallback`; // Updated path
         const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
+
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
             new URLSearchParams({
                 client_id: clientId!,
@@ -266,6 +269,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 prompt: 'select_account consent',
                 state: JSON.stringify({ userId: user.id }),
             }).toString();
+
         window.location.href = authUrl;
     };
 
@@ -273,8 +277,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         if (!user) return;
         setAddingChannel(true);
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        const redirectUri = `${window.location.origin}/api/youtube/callback`;
+        const redirectUri = `${window.location.origin}/api/ytcallback`; // Updated path
         const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
+
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
             new URLSearchParams({
                 client_id: clientId!,
@@ -285,6 +290,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 prompt: 'consent',
                 state: JSON.stringify({ userId: user.id, channel_id: channelId, reconnect: true }),
             }).toString();
+
         window.location.href = authUrl;
     };
 
@@ -364,7 +370,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
 
     const analyzeChannel = async () => {
         if (videos.length === 0 || !selectedChannel || !user) return;
-
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const { data: usesThisMonth, error: monthError } = await supabaseBrowser
@@ -377,7 +382,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             setAnalysisData({ error: 'Failed to check monthly limit.' });
             return;
         }
-
         const tier = subscription?.status || 'free';
         const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
         if ((usesThisMonth?.length || 0) >= monthlyLimit) {
@@ -388,7 +392,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             });
             return;
         }
-
         const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         const { data: recentUses, error: hourError } = await supabaseBrowser
             .from('analysis_uses')
@@ -408,7 +411,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             setAnalysisData({ error: "Too many requests. Please wait." });
             return;
         }
-
         if (savedAnalysis && currentVideoFingerprint) {
             const lastTime = new Date(savedAnalysis.timestamp);
             const hoursSince = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60);
@@ -421,10 +423,8 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 return;
             }
         }
-
         setAnalyzing(true);
         setAnalysisData(null);
-
         try {
             const profile = profiles[selectedChannel] || {};
             const res = await fetch('/api/ai/analyze', {
@@ -438,26 +438,18 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 }),
             });
             const data = await res.json();
-
             if (res.ok) {
                 setAnalysisData(data);
                 const nowIso = new Date().toISOString();
                 setSavedAnalysis({ analysis: data.analysis, fixes: data.fixes, timestamp: nowIso });
-
                 const { error: insertError } = await supabaseBrowser
                     .from('analysis_uses')
-                    .insert({
-                        user_id: user.id,
-                        channel_id: selectedChannel,
-                        used_at: nowIso,
-                    });
-
+                    .insert({ user_id: user.id, channel_id: selectedChannel, used_at: nowIso });
                 if (insertError) {
                     console.error('Failed to record usage:', insertError);
                 } else {
                     checkRateLimits();
                 }
-
                 await supabaseBrowser
                     .from('channel_analyses')
                     .upsert({
@@ -482,9 +474,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         alert("Copied to clipboard!");
     };
 
-    // ──────────────────────────────────────────────────────────────
-    // Existing effects (unchanged)
-    // ──────────────────────────────────────────────────────────────
+    // Effects
     useEffect(() => {
         if (selectedChannel && user) {
             fetchVideos(selectedChannel);
@@ -511,9 +501,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         }
     }, [user]);
 
-    // ──────────────────────────────────────────────────────────────
     // GATING LOGIC
-    // ──────────────────────────────────────────────────────────────
     if (hasConnectedChannel === null) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0f172a] to-black">
@@ -529,11 +517,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                     <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-purple-500 to-pink-600 bg-clip-text text-transparent">
                         Welcome to Squigly!
                     </h1>
-
                     <p className="text-xl md:text-2xl text-gray-200">
                         Connect your YouTube channel to unlock AI-powered analysis, analytics, and growth tools.
                     </p>
-
                     <button
                         onClick={handleAddChannel}
                         disabled={addingChannel}
@@ -541,7 +527,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                     >
                         {addingChannel ? 'Connecting...' : 'Connect Your YouTube Channel'}
                     </button>
-
                     <p className="text-lg text-gray-400 pt-6">
                         Once connected, you'll get instant access to everything Squigly has to offer.
                     </p>
@@ -550,9 +535,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         );
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // FULL ORIGINAL DASHBOARD (nothing removed)
-    // ──────────────────────────────────────────────────────────────
+    // FULL DASHBOARD
     const shortsStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') <= 60));
     const longFormStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') > 60));
 
@@ -570,7 +553,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                     disabled={addingChannel}
                                     className="px-8 py-6 bg-purple-600 text-white font-bold text-xl rounded-2xl hover:bg-purple-700 transition disabled:opacity-50"
                                 >
-                                    {addingChannel ? 'Connecting...' : 'Add Your First Channel'}
+                                    {addingChannel ? 'Adding...' : 'Add Your First Channel'}
                                 </button>
                                 <p className="mt-6 text-sm text-gray-500 max-w-xs mx-auto">
                                     You can connect channels from any Google account — even different from the one you signed in with.
@@ -581,7 +564,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                 {channels.map((ch) => (
                                     <div
                                         key={ch.channel_id}
-                                        className={`bg-gray-800/50 rounded-xl p-6 border transition cursor-pointer ${selectedChannel === ch.channel_id ? 'border-purple-500 shadow-purple-500/50 shadow-xl' : 'border-gray-700'}`}
+                                        className={`bg-gray-800/50 rounded-xl p-6 border transition cursor-pointer ${
+                                            selectedChannel === ch.channel_id ? 'border-purple-500 shadow-purple-500/50 shadow-xl' : 'border-gray-700'
+                                        }`}
                                         onClick={() => setSelectedChannel(ch.channel_id)}
                                     >
                                         <div className="flex justify-between items-start">
@@ -702,7 +687,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                         <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700 text-center">
                                             <p className="text-gray-400 text-sm">Avg View Duration</p>
                                             <p className="text-3xl font-bold">
-                                                {analyticsSummary.avgViewDuration ? ((analyticsSummary.avgViewDuration / 60).toFixed(1) + ' min') : 'No data yet'}
+                                                {analyticsSummary.avgViewDuration
+                                                    ? ((analyticsSummary.avgViewDuration / 60).toFixed(1) + ' min')
+                                                    : 'No data yet'}
                                             </p>
                                         </div>
                                         <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700 text-center">
@@ -751,11 +738,13 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                             <p className="text-3xl font-bold mt-2">{shortsStats.avgEngagement}%</p>
                                         </div>
                                     </div>
-
                                     <h3 className="text-2xl font-bold mb-6">Top 5 Shorts</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {shortsStats.top.map((short: any, index: number) => (
-                                            <div key={short.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl">
+                                            <div
+                                                key={short.id}
+                                                className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl"
+                                            >
                                                 <div className="relative">
                                                     <img src={short.thumbnail} alt={short.title} className="w-full h-48 object-cover" />
                                                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -802,11 +791,13 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                             <p className="text-3xl font-bold mt-2">{longFormStats.avgEngagement}%</p>
                                         </div>
                                     </div>
-
                                     <h3 className="text-2xl font-bold mb-6">Top 5 Long-form Videos</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {longFormStats.top.map((video: any, index: number) => (
-                                            <div key={video.id} className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl">
+                                            <div
+                                                key={video.id}
+                                                className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl"
+                                            >
                                                 <div className="relative">
                                                     <img src={video.thumbnail} alt={video.title} className="w-full h-48 object-cover" />
                                                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
