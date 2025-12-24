@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// Create the Stripe client instance (this is what was missing)
+// Create Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover',  // Match your other Stripe code
+    apiVersion: '2025-12-15.clover',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
 
         const userId = session.client_reference_id;
+        const tier = session.metadata?.tier;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string | null;
 
@@ -35,12 +36,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        // Upsert subscription row - using existing 'status' column
+        // Map purchased tier to status value your constraint allows
+        let newStatus = 'free';  // Default
+        if (tier === 'starter') {
+            newStatus = 'starter';
+        } else if (tier === 'pro' || tier === 'test') {  // Treat test as pro for limits
+            newStatus = 'pro';
+        }
+
+        // Upsert subscription row
         const { error } = await supabaseAdmin
             .from('subscriptions')
             .upsert({
                 user_id: userId,
-                status: 'active',
+                status: newStatus,  // Now 'starter' or 'pro' to match constraint
                 stripe_customer_id: customerId,
                 stripe_subscription_id: subscriptionId,
                 updated_at: new Date().toISOString(),
@@ -52,7 +61,7 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('Failed to save subscription:', error);
         } else {
-            console.log('Subscription saved/updated for user:', userId);
+            console.log('Subscription saved/updated for user:', userId, { status: newStatus });
         }
     }
 
