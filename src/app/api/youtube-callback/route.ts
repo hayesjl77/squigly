@@ -15,12 +15,12 @@ export async function GET(request: Request) {
 
         if (!code) {
             console.error('Missing authorization code');
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=missing_code`);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=missing_code`);
         }
 
         if (!stateParam) {
             console.error('Missing state parameter');
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=missing_state`);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=missing_state`);
         }
 
         let state;
@@ -29,12 +29,12 @@ export async function GET(request: Request) {
             console.log('State parsed', { state });
         } catch (e) {
             console.error('Invalid state JSON:', e);
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=invalid_state`);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=invalid_state`);
         }
 
         if (!state.userId) {
             console.error('No userId in state');
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=no_user_id`);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=no_user_id`);
         }
 
         // Token exchange
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
             code,
             client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-            redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube-callback`,  // ← IMPORTANT: Update to your FINAL flattened path
+            redirect_uri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/youtube-callback`,,  // ← IMPORTANT: Update to your FINAL flattened path
             grant_type: 'authorization_code',
         });
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
             console.error('Token exchange failed', tokenData);
             const errorMsg = tokenData.error_description || tokenData.error || 'Unknown token error';
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_APP_URL}/?error=token_exchange&msg=${encodeURIComponent(errorMsg)}`
+                `${process.env.NEXT_PUBLIC_SITE_URL}/?error=token_exchange&msg=${encodeURIComponent(errorMsg)}`
             );
         }
 
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
 
         if (!channelRes.ok || !channelData.items?.[0]) {
             console.error('Channel fetch failed', channelData);
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=channel_fetch`);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=channel_fetch`);
         }
 
         const channel = channelData.items[0];
@@ -106,14 +106,14 @@ export async function GET(request: Request) {
 
         if (upsertError) {
             console.error('Supabase upsert error', upsertError);
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=save_channel`);
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=save_channel`);
         }
 
         console.log('YouTube callback completed successfully');
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/`);
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/`);
 
     } catch (err) {
         console.error('Callback global error', err);
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=internal_error`);
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/?error=internal_error`);
     }
 }
