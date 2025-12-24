@@ -1,4 +1,3 @@
-// src/components/AuthHeader.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,7 +30,7 @@ export default function AuthHeader() {
         const fetchSub = async () => {
             const { data, error } = await supabaseBrowser
                 .from('subscriptions')
-                .select('*')
+                .select('*')  // Fetch all fields including stripe_customer_id
                 .eq('user_id', user.id)
                 .single();
 
@@ -62,17 +61,14 @@ export default function AuthHeader() {
     const handleManageBilling = async () => {
         if (isBillingLoading) return;
         setIsBillingLoading(true);
-
         try {
             const res = await fetch('/api/stripe/portal', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
             });
-
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to open portal');
-
             if (data.url) {
                 window.location.href = data.url;
             }
@@ -91,7 +87,6 @@ export default function AuthHeader() {
                 redirectTo: `${window.location.origin}/api/auth/callback`,
             },
         });
-
         if (error) {
             console.error('Login initiation failed:', error.message);
             alert('Could not start login. Please try again.');
@@ -110,21 +105,11 @@ export default function AuthHeader() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-6">
-                        <Link href="/" className="text-xl text-gray-300 hover:text-white transition">
-                            Home
-                        </Link>
-                        <Link href="/pricing" className="text-xl text-gray-300 hover:text-white transition">
-                            Pricing
-                        </Link>
-                        <Link href="/terms" className="text-xl text-gray-300 hover:text-white transition">
-                            Terms
-                        </Link>
-                        <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">
-                            Privacy
-                        </Link>
-                        <Link href="/roadmap" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">
-                            Roadmap
-                        </Link>
+                        <Link href="/" className="text-xl text-gray-300 hover:text-white transition">Home</Link>
+                        <Link href="/pricing" className="text-xl text-gray-300 hover:text-white transition">Pricing</Link>
+                        <Link href="/terms" className="text-xl text-gray-300 hover:text-white transition">Terms</Link>
+                        <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">Privacy</Link>
+                        <Link href="/roadmap" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">Roadmap</Link>
                     </div>
                 </div>
 
@@ -149,6 +134,7 @@ export default function AuthHeader() {
                                             <p className="font-bold text-lg">Account</p>
                                             <p className="text-gray-400 text-sm break-all mt-1">{user.email}</p>
                                         </div>
+
                                         <div>
                                             <p className="font-bold text-lg">Your Plan</p>
                                             <p className="text-2xl font-bold capitalize mt-2">
@@ -157,8 +143,10 @@ export default function AuthHeader() {
                                                         'Free Plan'}
                                             </p>
                                         </div>
+
                                         <div className="flex flex-col gap-3">
-                                            {subscription.status && subscription.status !== 'free' ? (
+                                            {/* Show Manage Billing if there is ANY Stripe customer ID (covers test subs) */}
+                                            {subscription.stripe_customer_id ? (
                                                 <button
                                                     onClick={handleManageBilling}
                                                     disabled={isBillingLoading}
@@ -174,6 +162,7 @@ export default function AuthHeader() {
                                                     Upgrade Plan
                                                 </Link>
                                             )}
+
                                             <button
                                                 onClick={handleSignOut}
                                                 className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg transition font-medium"
@@ -187,16 +176,10 @@ export default function AuthHeader() {
                         </div>
                     ) : (
                         <div className="flex gap-4">
-                            <button
-                                onClick={handleLogin}
-                                className="px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition"
-                            >
+                            <button onClick={handleLogin} className="px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition">
                                 Log in
                             </button>
-                            <Link
-                                href="/signup"
-                                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition font-medium"
-                            >
+                            <Link href="/signup" className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition font-medium">
                                 Sign up
                             </Link>
                         </div>
