@@ -80,7 +80,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         setReconnectingChannel(null);
     };
 
-    // Auth + initial load
+    // Auth + initial load + auto-create subscription/user_profiles
     useEffect(() => {
         isMounted.current = true;
         const loadInitialUser = async () => {
@@ -88,20 +88,22 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             if (isMounted.current) {
                 setUser(user);
                 if (user) {
-                    fetchChannels(user.id);
-                    fetchSubscription(user.id);
+                    await fetchChannels(user.id);
+                    await initSubscription(user.id);  // Auto-create subscription if missing
+                    await fetchSubscription(user.id);
                 }
             }
         };
         loadInitialUser();
 
-        const { data: listener } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+        const { data: listener } = supabaseBrowser.auth.onAuthStateChange(async (_event, session) => {
             if (isMounted.current) {
                 const currentUser = session?.user ?? null;
                 setUser(currentUser);
                 if (currentUser) {
-                    fetchChannels(currentUser.id);
-                    fetchSubscription(currentUser.id);
+                    await fetchChannels(currentUser.id);
+                    await initSubscription(currentUser.id);
+                    await fetchSubscription(currentUser.id);
                 } else {
                     resetAllState();
                 }
@@ -113,6 +115,31 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             listener.subscription.unsubscribe();
         };
     }, []);
+
+    // NEW: Auto-create subscription row for new users (default free)
+    const initSubscription = async (userId: string) => {
+        try {
+            const { data: existing } = await supabaseBrowser
+                .from('subscriptions')
+                .select('id')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (!existing) {
+                console.log('Creating default subscription for new user', userId);
+                const { error } = await supabaseBrowser
+                    .from('subscriptions')
+                    .insert({
+                        user_id: userId,
+                        status: 'free',
+                        // Add other defaults like created_at, updated_at if needed
+                    });
+                if (error) console.error('Failed to create subscription:', error);
+            }
+        } catch (err) {
+            console.error('Subscription init error:', err);
+        }
+    };
 
     // Gate check - has any YouTube channel connected?
     useEffect(() => {
@@ -134,7 +161,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         checkConnection();
     }, [user?.id]);
 
-    // Fetch functions (with debug logging)
+    // Fetch functions
     const fetchChannels = async (userId: string) => {
         const { data } = await supabaseBrowser
             .from('youtube_tokens')
@@ -156,6 +183,21 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             setProfiles(prev => ({ ...prev, [channelId]: data }));
             setTempProfile({ channel_name: data.channel_name || "", channel_about: data.channel_about || "", goal: data.goal || "" });
             return data;
+        }
+        // Auto-create profile if missing
+        try {
+            await supabaseBrowser
+                .from('user_profiles')
+                .insert({
+                    user_id: user.id,
+                    channel_id: channelId,
+                    channel_name: 'New Channel',
+                    channel_about: '',
+                    goal: '',
+                });
+            console.log('Auto-created user profile for channel', channelId);
+        } catch (err) {
+            console.error('Failed to auto-create profile:', err);
         }
         setTempProfile({ channel_name: "", channel_about: "", goal: "" });
         return null;
