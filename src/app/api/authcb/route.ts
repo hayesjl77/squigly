@@ -3,17 +3,16 @@
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  console.log('Authcb handler executing!', {
+  console.log('Authcb basic handler running!', {
     url: request.url,
-    code: request.url.includes('code=') ? 'present' : 'missing',
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'missing',
   });
 
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
 
-  if (!code) {
-    return NextResponse.json({ status: 'No code provided - test successful' });
-  }
-
-  return NextResponse.redirect(new URL('/', request.url));
+  return NextResponse.json({
+    status: 'Basic handler works',
+    codePresent: !!code,
+  });
 }
