@@ -1,12 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase admin client (server-side only)
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-);
 
 // xAI Grok API endpoint and key
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
@@ -22,13 +14,13 @@ export async function POST(request: NextRequest) {
         }
 
         if (!GROK_API_KEY) {
-            console.error('Missing XAI_API_KEY');
-            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+            console.error('Missing XAI_API_KEY in environment variables');
+            return NextResponse.json({ error: 'Server configuration error: Missing API key' }, { status: 500 });
         }
 
-        // Prepare video summary (limit to recent 20 to avoid token overflow)
+        // Prepare video summary (limit to recent 10 to avoid token overflow)
         const videoSummary = videos
-            .slice(0, 20)
+            .slice(0, 10)
             .map((v: any) => ({
                 title: v.title,
                 views: v.views,
@@ -59,6 +51,7 @@ Analysis Structure (must follow exactly):
 3. What's Killing Growth: Top 5 biggest mistakes or weaknesses (e.g., weak hooks, bad pacing, no CTA, wrong trends).
 4. 30-Day Growth Plan: Clear, step-by-step action plan (numbered 1-10) to fix issues and hit their goal.
 5. Expected Results: Realistic prediction if they follow the plan (e.g., "From 1k to 50k views/month").
+6. Search the web or youtube for similar successful videos or trends to make content ideas.
 
 Then, provide "Fix It For Me" suggestions as a JSON object:
 {
@@ -93,18 +86,19 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
             }),
         });
 
+        const responseData = await response.json();  // Get full response for better error
+
         if (!response.ok) {
-            const err = await response.text();
-            console.error('Grok API error:', err);
-            return NextResponse.json({ error: 'AI analysis failed' }, { status: 500 });
+            console.error('Grok API failed:', { status: response.status, error: responseData });
+            return NextResponse.json({ error: `AI analysis failed: ${responseData.error?.message || 'Unknown error'}` }, { status: 500 });
         }
 
-        const data = await response.json();
-        const fullText = data.choices[0].message.content.trim();
+        const fullText = responseData.choices[0].message.content.trim();
 
         // Split analysis and fixes
         const [analysisPart, fixesPart] = fullText.split('---FIXES---');
         if (!fixesPart) {
+            console.error('Invalid AI response format:', fullText);
             return NextResponse.json({ error: 'Invalid response format from AI' }, { status: 500 });
         }
 
@@ -112,13 +106,11 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
         try {
             fixes = JSON.parse(fixesPart.trim());
         } catch (e) {
-            console.error('Failed to parse fixes JSON:', e);
+            console.error('Failed to parse fixes JSON:', { error: e, raw: fixesPart });
             fixes = {};
         }
 
-        // Clean up analysis text (remove any trailing JSON or junk) - FIXED VERSION
-        // Fixed Vercel build - using split instead of regex flag
-        const cleanAnalysis = analysisPart.trim().split('---FIXES---')[0].trim();
+        const cleanAnalysis = analysisPart.trim();
 
         return NextResponse.json({
             analysis: cleanAnalysis,
@@ -126,7 +118,7 @@ Be direct, motivational, and savage when needed. Use emojis sparingly for emphas
         });
     } catch (error) {
         console.error('Analyze route error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown') }, { status: 500 });
     }
 }
 
