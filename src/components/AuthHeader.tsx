@@ -30,15 +30,17 @@ export default function AuthHeader() {
         const fetchSub = async () => {
             const { data, error } = await supabaseBrowser
                 .from('subscriptions')
-                .select('*')  // Fetch all fields including stripe_customer_id
+                .select('*')
                 .eq('user_id', user.id)
                 .single();
 
             if (!error && data) {
                 setSubscription(data);
+                console.log('Full subscription data from DB:', data);  // ← ADD THIS LOG
             } else {
                 console.error('Subscription fetch error:', error);
                 setSubscription({ status: 'free' });
+                console.log('No subscription row found - defaulting to free');
             }
         };
 
