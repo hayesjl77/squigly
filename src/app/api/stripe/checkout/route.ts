@@ -1,3 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';  // ← ADD THIS LINE
+import stripe from '@/lib/stripe';
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
