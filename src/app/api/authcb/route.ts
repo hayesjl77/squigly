@@ -6,71 +6,41 @@ import { cookies } from 'next/headers';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  console.log('Authcb handler started!', { url: request.url });
-
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
 
   if (!code) {
-    console.error('No authorization code provided');
-    return NextResponse.redirect(
-        new URL('/login?error=no_code', requestUrl.origin)
-    );
+    return NextResponse.redirect(new URL('/login?error=no_code', requestUrl.origin));
   }
 
-  try {
-    const cookieStore = await cookies();
+  const cookieStore = cookies(); // No await needed here in latest @supabase/ssr
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() {
-              return cookieStore.getAll();
-            },
-            setAll(cookiesToSet) {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options);
-              });
-            },
+  const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name) {
+            return cookieStore.get(name)?.value;
           },
-        }
-    );
+          set(name, value, options) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name, options) {
+            cookieStore.set({ name, value: '', ...options });
+          },
+        },
+      }
+  );
 
-    console.log('Supabase client created successfully');
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error) {
-      console.error('Session exchange failed:', error.message);
-      return NextResponse.redirect(
-          new URL(
-              `/login?error=auth_failed&msg=${encodeURIComponent(error.message)}`,
-              requestUrl.origin
-          )
-      );
-    }
-
-    console.log('Session exchanged successfully');
-
-    // Optional: Log session details for debugging (remove in production if desired)
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('Session after exchange:', session ? 'SET' : 'NOT SET', {
-      userId: session?.user?.id,
-      expiresAt: session?.expires_at,
-    });
-
-    // Redirect to home/dashboard on success
-    return NextResponse.redirect(requestUrl.origin + '/');
-  } catch (err: unknown) {
-    console.error('Handler error:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+  if (error) {
     return NextResponse.redirect(
-        new URL(
-            `/login?error=internal&msg=${encodeURIComponent(errorMessage)}`,
-            requestUrl.origin
-        )
+        new URL(`/login?error=auth_failed&msg=${encodeURIComponent(error.message)}`, requestUrl.origin)
     );
   }
+
+  // Success redirect
+  return NextResponse.redirect(requestUrl.origin + '/');
 }
