@@ -348,18 +348,26 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
 
     const handleProfileSave = async () => {
         if (!user || !editingChannel) return;
-        const { error } = await supabaseBrowser
-            .from('user_profiles')
-            .upsert({
-                user_id: user.id,
-                channel_id: editingChannel,
-                channel_name: tempProfile.channel_name,
-                channel_about: tempProfile.channel_about,
-                goal: tempProfile.goal,
-            });
-        if (!error) {
-            setProfiles(prev => ({ ...prev, [editingChannel]: tempProfile }));
-            setEditingChannel(null);
+        try {
+            const { error } = await supabaseBrowser
+                .from('user_profiles')
+                .upsert({
+                    user_id: user.id,
+                    channel_id: editingChannel,
+                    channel_name: tempProfile.channel_name,
+                    channel_about: tempProfile.channel_about,
+                    goal: tempProfile.goal,
+                });
+            console.log('Profile save result:', { error });  // ← New log to see if upsert fails
+            if (!error) {
+                setProfiles(prev => ({ ...prev, [editingChannel]: tempProfile }));
+                setEditingChannel(null);
+            } else {
+                throw error;
+            }
+        } catch (err) {
+            console.error('Profile save error:', err);
+            alert('Failed to save profile. Check console for details.');
         }
     };
 
