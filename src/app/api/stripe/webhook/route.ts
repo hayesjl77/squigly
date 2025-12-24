@@ -1,7 +1,7 @@
 // src/app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import stripe from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';  // Your admin client (service key)
+import Stripe from 'stripe';  // ← This line fixes the type error
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
