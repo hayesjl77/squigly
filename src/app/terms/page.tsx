@@ -6,38 +6,7 @@ import Link from 'next/link';
 export default function TermsPage() {
     return (
         <>
-            {/* Simple shared header for public page */}
-            <header className="border-b border-gray-800 p-6">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-4">
-                            <img src="/images/Squigly_Logo.png" alt="Squigly Logo" className="h-12 w-auto drop-shadow-lg" />
-                            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-                                Squigly
-                            </h1>
-                        </div>
-                        <div className="flex items-center gap-6">
-                            <Link href="/" className="text-xl text-gray-300 hover:text-white transition">
-                                Home
-                            </Link>
-                            <Link href="/pricing" className="text-xl text-gray-300 hover:text-white transition">
-                                Pricing
-                            </Link>
-                            <Link href="/terms" className="text-xl text-purple-400 hover:text-purple-300 transition font-medium">
-                                Terms
-                            </Link>
-                            <Link href="/privacy" className="text-xl text-gray-300 hover:text-white transition">
-                                Privacy
-                            </Link>
-                            <Link href="/roadmap" className="text-xl text-gray-300 hover:text-white transition">
-                                Roadmap
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Terms Content */}
+           {/* Main Terms Content */}
             <div className="min-h-screen bg-gradient-to-b from-[#0f172a] via-[#0f172a] to-black text-white">
                 <div className="max-w-4xl mx-auto py-16 px-6">
                     <div className="text-center mb-16">
