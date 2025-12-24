@@ -1,12 +1,11 @@
-// src/app/api/youtube/cb-test/route.ts  (your renamed folder)
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export const dynamic = 'force-dynamic';  // No caching
+export const dynamic = 'force-dynamic'; // No caching
 
 export async function GET(request: Request) {
     try {
-        console.log('Callback route started', { url: request.url });
+        console.log('YouTube callback route started', { url: request.url });
 
         const url = new URL(request.url);
         const code = url.searchParams.get('code');
@@ -15,12 +14,12 @@ export async function GET(request: Request) {
         console.log('Params extracted', { code: !!code, stateParam });
 
         if (!code) {
-            console.error('Missing code');
+            console.error('Missing authorization code');
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=missing_code`);
         }
 
         if (!stateParam) {
-            console.error('Missing state');
+            console.error('Missing state parameter');
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=missing_state`);
         }
 
@@ -29,7 +28,7 @@ export async function GET(request: Request) {
             state = JSON.parse(stateParam);
             console.log('State parsed', { state });
         } catch (e) {
-            console.error('Invalid state JSON', e);
+            console.error('Invalid state JSON:', e);
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=invalid_state`);
         }
 
@@ -44,12 +43,11 @@ export async function GET(request: Request) {
             code,
             client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-            redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/cb-test`,
+            redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube-callback`,  // ← IMPORTANT: Update to your FINAL flattened path
             grant_type: 'authorization_code',
         });
 
         console.log('Token exchange starting');
-
         const tokenRes = await fetch(tokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -61,8 +59,10 @@ export async function GET(request: Request) {
 
         if (!tokenRes.ok) {
             console.error('Token exchange failed', tokenData);
-            const errorMsg = tokenData.error_description || tokenData.error || 'Unknown error';
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=token_exchange&msg=${encodeURIComponent(errorMsg)}`);
+            const errorMsg = tokenData.error_description || tokenData.error || 'Unknown token error';
+            return NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_APP_URL}/?error=token_exchange&msg=${encodeURIComponent(errorMsg)}`
+            );
         }
 
         // Channel fetch
@@ -86,29 +86,30 @@ export async function GET(request: Request) {
         const channelId = channel.id;
         const channelTitle = channel.snippet.title;
 
-        // Supabase save
+        // Save to Supabase
         console.log('Supabase upsert starting');
         const { error: upsertError } = await supabaseAdmin
             .from('youtube_tokens')
-            .upsert({
-                user_id: state.userId,
-                channel_id: channelId,
-                channel_title: channelTitle,
-                access_token: tokenData.access_token,
-                refresh_token: tokenData.refresh_token || null,
-                scope: tokenData.scope,
-                token_type: tokenData.token_type,
-                expiry_date: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-            }, {
-                onConflict: 'user_id, channel_id',
-            });
+            .upsert(
+                {
+                    user_id: state.userId,
+                    channel_id: channelId,
+                    channel_title: channelTitle,
+                    access_token: tokenData.access_token,
+                    refresh_token: tokenData.refresh_token || null,
+                    scope: tokenData.scope,
+                    token_type: tokenData.token_type,
+                    expiry_date: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+                },
+                { onConflict: 'user_id, channel_id' }
+            );
 
         if (upsertError) {
             console.error('Supabase upsert error', upsertError);
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=save_channel`);
         }
 
-        console.log('Callback completed successfully');
+        console.log('YouTube callback completed successfully');
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/`);
 
     } catch (err) {
