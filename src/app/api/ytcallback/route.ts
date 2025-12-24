@@ -5,32 +5,38 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-    console.log('YT callback started - full debug version');
+    console.log('YT callback handler started', { url: request.url });
 
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
     const stateParam = url.searchParams.get('state');
 
     if (!code) {
-        console.log('No code - early exit');
-        return NextResponse.json({ status: 'No code', debug: 'Test successful' });
+        console.error('Missing authorization code');
+        return NextResponse.redirect(new URL('/?error=missing_code', url.origin));
+    }
+
+    if (!stateParam) {
+        console.error('Missing state parameter');
+        return NextResponse.redirect(new URL('/?error=missing_state', url.origin));
     }
 
     let state;
     try {
-        state = JSON.parse(stateParam || '{}');
-        console.log('State parsed', state);
+        state = JSON.parse(stateParam);
+        console.log('State parsed successfully', { state });
     } catch (e) {
-        console.error('State parse failed', e);
-        return NextResponse.json({ error: 'Invalid state' });
+        console.error('Invalid state JSON:', e);
+        return NextResponse.redirect(new URL('/?error=invalid_state', url.origin));
     }
 
     if (!state.userId) {
         console.error('No userId in state');
-        return NextResponse.json({ error: 'No userId' });
+        return NextResponse.redirect(new URL('/?error=no_user_id', url.origin));
     }
 
     try {
+        // Step 1: Token exchange
         console.log('Step 1: Token exchange starting');
         const tokenUrl = 'https://oauth2.googleapis.com/token';
         const tokenBody = new URLSearchParams({
@@ -48,12 +54,18 @@ export async function GET(request: Request) {
         });
 
         const tokenData = await tokenRes.json();
-        console.log('Token exchange result', { ok: tokenRes.ok, status: tokenRes.status });
 
         if (!tokenRes.ok) {
-            return NextResponse.json({ error: 'Token exchange failed', details: tokenData });
+            console.error('Token exchange failed', { status: tokenRes.status, response: tokenData });
+            const errorMsg = tokenData.error_description || tokenData.error || 'Unknown token error';
+            return NextResponse.redirect(
+                new URL(`/?error=token_exchange&msg=${encodeURIComponent(errorMsg)}`, url.origin)
+            );
         }
 
+        console.log('Token exchange successful', { hasAccessToken: !!tokenData.access_token });
+
+        // Step 2: Channel fetch
         console.log('Step 2: Channel fetch starting');
         const channelRes = await fetch(
             'https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&mine=true',
@@ -63,16 +75,19 @@ export async function GET(request: Request) {
         );
 
         const channelData = await channelRes.json();
-        console.log('Channel fetch result', { ok: channelRes.ok });
 
         if (!channelRes.ok || !channelData.items?.[0]) {
-            return NextResponse.json({ error: 'Channel fetch failed', details: channelData });
+            console.error('Channel fetch failed', channelData);
+            return NextResponse.redirect(new URL('/?error=channel_fetch', url.origin));
         }
 
         const channel = channelData.items[0];
         const channelId = channel.id;
         const channelTitle = channel.snippet.title;
 
+        console.log('Channel fetched successfully', { channelId, channelTitle });
+
+        // Step 3: Supabase upsert
         console.log('Step 3: Supabase upsert starting');
         const { error: upsertError } = await supabaseAdmin
             .from('youtube_tokens')
@@ -91,14 +106,23 @@ export async function GET(request: Request) {
             );
 
         if (upsertError) {
-            console.error('Upsert failed', upsertError);
-            return NextResponse.json({ error: 'Upsert failed', details: upsertError });
+            console.error('Supabase upsert error', upsertError);
+            return NextResponse.redirect(new URL('/?error=save_channel', url.origin));
         }
 
-        console.log('Full callback success');
-        return NextResponse.json({ status: 'Full success - test mode' });
+        // Success logging
+        console.log('Upsert completed successfully for user:', state.userId, {
+            channelId,
+            channelTitle,
+            expiryDate: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+            accessTokenPresent: !!tokenData.access_token,
+            refreshTokenPresent: !!tokenData.refresh_token,
+        });
+
+        console.log('YT callback completed successfully - redirecting to home');
+        return NextResponse.redirect(url.origin + '/');
     } catch (err) {
-        console.error('Full handler error', err);
-        return NextResponse.json({ error: 'Handler crashed', details: err });
+        console.error('Callback global error', err);
+        return NextResponse.redirect(new URL('/?error=internal_error', url.origin));
     }
 }
