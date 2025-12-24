@@ -1,18 +1,20 @@
-// app/api/youtube/videos/route.ts
+// src/app/api/youtube/videos/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'  // Create this file if not exists (see below)
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 async function getValidAccessToken(channelId: string) {
     const { data: tokenData } = await supabaseAdmin
         .from('youtube_tokens')
-        .select('access_token, refresh_token, expires_at')
+        .select('access_token, refresh_token, expiry_date')  // ← Changed to expiry_date
         .eq('channel_id', channelId)
         .single()
 
     if (!tokenData) throw new Error('No token found')
 
-    const expiresAt = tokenData.expires_at ? new Date(tokenData.expires_at) : null
-    const isExpired = !expiresAt || expiresAt < new Date()
+    const expiryDate = tokenData.expiry_date ? new Date(tokenData.expiry_date) : null
+    const isExpired = !expiryDate || expiryDate < new Date()
+
+    console.log('Token check:', { channelId, isExpired, expiryDate });  // ← Debug log
 
     if (!isExpired) {
         return tokenData.access_token
@@ -33,19 +35,21 @@ async function getValidAccessToken(channelId: string) {
     })
 
     const refreshData = await refreshRes.json()
-    if (!refreshRes.ok) throw new Error('Failed to refresh token')
+    if (!refreshRes.ok) throw new Error('Failed to refresh token: ' + JSON.stringify(refreshData))  // ← Better error
 
     const newAccessToken = refreshData.access_token
-    const newExpiresAt = new Date(Date.now() + (refreshData.expires_in || 3600) * 1000)
+    const newExpiryDate = new Date(Date.now() + (refreshData.expires_in || 3600) * 1000)
 
     // Save refreshed token
     await supabaseAdmin
         .from('youtube_tokens')
         .update({
             access_token: newAccessToken,
-            expires_at: newExpiresAt.toISOString(),
+            expiry_date: newExpiryDate.toISOString(),  // ← Changed to expiry_date
         })
         .eq('channel_id', channelId)
+
+    console.log('Token refreshed and updated:', { channelId, newExpiryDate });  // ← Debug log
 
     return newAccessToken
 }
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
         })
         const channelData = await channelRes.json()
         if (!channelRes.ok || !channelData.items?.[0]) {
-            throw new Error('Failed to fetch channel info')
+            throw new Error('Failed to fetch channel info: ' + JSON.stringify(channelData))
         }
         const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads
 
@@ -80,11 +84,13 @@ export async function POST(request: NextRequest) {
                 { headers: { Authorization: `Bearer ${access_token}` } }
             )
             const playlistData = await playlistRes.json()
-            if (!playlistRes.ok) throw new Error('Failed to fetch playlist')
+            if (!playlistRes.ok) throw new Error('Failed to fetch playlist: ' + JSON.stringify(playlistData))
 
             videoIds = videoIds.concat(playlistData.items.map((item: any) => item.snippet.resourceId.videoId))
             nextPageToken = playlistData.nextPageToken || ''
         } while (nextPageToken)
+
+        console.log('Fetched video IDs:', { count: videoIds.length });  // ← Debug log
 
         // Batch video details
         const videos = []
@@ -95,7 +101,7 @@ export async function POST(request: NextRequest) {
                 { headers: { Authorization: `Bearer ${access_token}` } }
             )
             const videosData = await videosRes.json()
-            if (!videosRes.ok) throw new Error('Failed to fetch video details')
+            if (!videosRes.ok) throw new Error('Failed to fetch video details: ' + JSON.stringify(videosData))
 
             videos.push(...videosData.items)
         }
@@ -109,6 +115,8 @@ export async function POST(request: NextRequest) {
             comments: Number(video.statistics.commentCount || 0),
             duration: video.contentDetails.duration,
         }))
+
+        console.log('Formatted videos:', { count: formattedVideos.length });  // ← Debug log
 
         return NextResponse.json({ items: formattedVideos })
     } catch (error: any) {

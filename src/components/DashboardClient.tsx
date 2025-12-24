@@ -31,7 +31,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     const isMounted = useRef(true);
 
     // ──────────────────────────────────────────────────────────────
-    // Helpers (unchanged)
+    // Helpers
     // ──────────────────────────────────────────────────────────────
     const formatTimestamp = (isoString: string) => {
         const date = new Date(isoString);
@@ -83,7 +83,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     };
 
     // ──────────────────────────────────────────────────────────────
-    // Auth + initial load (unchanged)
+    // Auth & initial load
     // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         isMounted.current = true;
@@ -118,7 +118,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         };
     }, []);
 
-    // NEW: Gate check - has any YouTube channel connected?
+    // Gate check - has any YouTube channel connected?
     useEffect(() => {
         if (!user?.id) return;
         const checkConnection = async () => {
@@ -141,83 +141,119 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     }, [user?.id]);
 
     // ──────────────────────────────────────────────────────────────
-    // Fetch & handlers (unchanged)
+    // Fetch functions with error handling & debug logs
     // ──────────────────────────────────────────────────────────────
     const fetchChannels = async (userId: string) => {
-        const { data } = await supabaseBrowser
-            .from('youtube_tokens')
-            .select('channel_id, channel_title')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-        setChannels(data || []);
+        try {
+            const { data, error } = await supabaseBrowser
+                .from('youtube_tokens')
+                .select('channel_id, channel_title')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            console.log('Fetched channels:', { count: data?.length || 0 });
+            setChannels(data || []);
+        } catch (err) {
+            console.error('fetchChannels error:', err);
+            setChannels([]);
+        }
     };
 
     const fetchProfile = async (channelId: string) => {
         if (!user) return null;
-        const { data } = await supabaseBrowser
-            .from('user_profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('channel_id', channelId)
-            .single();
-        if (data) {
-            setProfiles(prev => ({ ...prev, [channelId]: data }));
-            setTempProfile({ channel_name: data.channel_name || "", channel_about: data.channel_about || "", goal: data.goal || "" });
-            return data;
+        try {
+            const { data, error } = await supabaseBrowser
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('channel_id', channelId)
+                .single();
+            if (error && error.code !== 'PGRST116') throw error;
+            if (data) {
+                setProfiles(prev => ({ ...prev, [channelId]: data }));
+                setTempProfile({ channel_name: data.channel_name || "", channel_about: data.channel_about || "", goal: data.goal || "" });
+                console.log(`Profile loaded for ${channelId}`);
+                return data;
+            }
+            setTempProfile({ channel_name: "", channel_about: "", goal: "" });
+            return null;
+        } catch (err) {
+            console.error('fetchProfile error:', err);
+            return null;
         }
-        setTempProfile({ channel_name: "", channel_about: "", goal: "" });
-        return null;
     };
 
     const fetchVideos = async (channelId: string) => {
-        const res = await fetch('/api/youtube/videos', {
-            method: 'POST',
-            body: JSON.stringify({ channel_id: channelId }),
-        });
-        const data = await res.json();
-        const items = data.items || [];
-        setVideos(items);
-        const fingerprint = getVideoFingerprint(items);
-        setCurrentVideoFingerprint(fingerprint);
+        try {
+            const res = await fetch('/api/youtube/videos', {
+                method: 'POST',
+                body: JSON.stringify({ channel_id: channelId }),
+            });
+            if (!res.ok) throw new Error(`Videos HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            const items = data.items || [];
+            setVideos(items);
+            const fingerprint = getVideoFingerprint(items);
+            setCurrentVideoFingerprint(fingerprint);
+            console.log('Fetched videos:', { count: items.length, sample: items[0] ? items[0].title : 'none' });
+        } catch (err) {
+            console.error('fetchVideos error:', err);
+            setVideos([]);
+        }
     };
 
     const fetchSavedAnalysis = async (channelId: string) => {
         if (!user) return;
-        const { data } = await supabaseBrowser
-            .from('channel_analyses')
-            .select('analysis_text, fixes, created_at')
-            .eq('user_id', user.id)
-            .eq('channel_id', channelId)
-            .single();
-        if (data) {
-            const saved = { analysis: data.analysis_text, fixes: data.fixes, timestamp: data.created_at };
-            setSavedAnalysis(saved);
-            setAnalysisData({ analysis: data.analysis_text, fixes: data.fixes });
-        } else {
+        try {
+            const { data, error } = await supabaseBrowser
+                .from('channel_analyses')
+                .select('analysis_text, fixes, created_at')
+                .eq('user_id', user.id)
+                .eq('channel_id', channelId)
+                .single();
+            if (error && error.code !== 'PGRST116') throw error;
+            if (data) {
+                const saved = { analysis: data.analysis_text, fixes: data.fixes, timestamp: data.created_at };
+                setSavedAnalysis(saved);
+                setAnalysisData({ analysis: data.analysis_text, fixes: data.fixes });
+                console.log(`Saved analysis loaded for ${channelId}`);
+            } else {
+                setSavedAnalysis(null);
+                setAnalysisData(null);
+            }
+        } catch (err) {
+            console.error('fetchSavedAnalysis error:', err);
             setSavedAnalysis(null);
             setAnalysisData(null);
         }
     };
 
     const fetchSubscription = async (userId: string) => {
-        const { data } = await supabaseBrowser
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-        setSubscription(data || { status: 'free' });
+        try {
+            const { data, error } = await supabaseBrowser
+                .from('subscriptions')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+            if (error && error.code !== 'PGRST116') throw error;
+            setSubscription(data || { status: 'free' });
+            console.log('Fetched subscription:', data ? 'loaded' : 'default free');
+        } catch (err) {
+            console.error('fetchSubscription error:', err);
+            setSubscription({ status: 'free' });
+        }
     };
 
     const fetchAnalytics = async (channelId: string) => {
         try {
-            const { data: tokenData } = await supabaseBrowser
+            const { data: tokenData, error: tokenErr } = await supabaseBrowser
                 .from('youtube_tokens')
                 .select('access_token, refresh_token')
                 .eq('channel_id', channelId)
                 .eq('user_id', user?.id)
                 .single();
-
-            if (!tokenData?.access_token) return;
+            if (tokenErr) throw tokenErr;
+            if (!tokenData?.access_token) throw new Error('No access token');
 
             const res = await fetch('/api/youtube/analytics', {
                 method: 'POST',
@@ -234,23 +270,29 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 if (reconnectingChannel === channelId) {
                     setReconnectingChannel(null);
                 }
+                console.log('Fetched analytics:', data);
             } else if (res.status === 403 && data.error?.includes('insufficient authentication scopes')) {
                 console.log('Insufficient scopes detected - auto-reconnecting channel', channelId);
                 setReconnectingChannel(channelId);
                 handleAutoReconnect(channelId);
             } else {
                 console.error('Analytics API error:', data.error);
+                setAnalyticsSummary(null);
             }
         } catch (err) {
-            console.error('Analytics fetch error:', err);
+            console.error('fetchAnalytics error:', err);
+            setAnalyticsSummary(null);
         }
     };
 
+    // ──────────────────────────────────────────────────────────────
+    // Handlers
+    // ──────────────────────────────────────────────────────────────
     const handleAddChannel = () => {
         if (!user) return;
         setAddingChannel(true);
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        const redirectUri = `${window.location.origin}/api/ytcallback`; // we renamed to cb-test for testing
+        const redirectUri = `${window.location.origin}/api/ytcallback`;
         const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
 
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -379,11 +421,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         const tier = subscription?.status || 'free';
         const monthlyLimit = tier === 'pro' ? 500 : tier === 'starter' ? 100 : 1;
         if ((usesThisMonth?.length || 0) >= monthlyLimit) {
-            setAnalysisData({
-                error: tier === 'pro' ? "You've reached your Pro limit of 500 analyses this month." :
-                    tier === 'starter' ? "You've reached your Starter limit of 100 analyses this month. Upgrade to Pro!" :
-                        "Free users get 1 analysis per month. Upgrade to Starter!"
-            });
+            setAnalysisData({ error: tier === 'pro' ? "You've reached your Pro limit of 500 analyses this month." : tier === 'starter' ? "You've reached your Starter limit of 100 analyses this month. Upgrade to Pro!" : "Free users get 1 analysis per month. Upgrade to Starter!" });
             return;
         }
         const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -469,7 +507,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     };
 
     // ──────────────────────────────────────────────────────────────
-    // Existing effects (unchanged)
+    // Effects
     // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         if (selectedChannel && user) {
@@ -497,8 +535,16 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         }
     }, [user]);
 
+    // Auto-select first channel when channels load
+    useEffect(() => {
+        if (channels.length > 0 && !selectedChannel) {
+            console.log('Auto-selecting first channel:', channels[0].channel_id);
+            setSelectedChannel(channels[0].channel_id);
+        }
+    }, [channels]);
+
     // ──────────────────────────────────────────────────────────────
-    // GATING LOGIC
+    // GATING LOGIC + FULL DASHBOARD RENDER
     // ──────────────────────────────────────────────────────────────
     if (hasConnectedChannel === null) {
         return (
@@ -533,7 +579,6 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         );
     }
 
-    // FULL ORIGINAL DASHBOARD (nothing removed)
     const shortsStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') <= 60));
     const longFormStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') > 60));
 
@@ -744,7 +789,11 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                                 className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl"
                                             >
                                                 <div className="relative">
-                                                    <img src={short.thumbnail} alt={short.title} className="w-full h-48 object-cover" />
+                                                    <img
+                                                        src={short.thumbnail}
+                                                        alt={short.title}
+                                                        className="w-full h-48 object-cover"
+                                                    />
                                                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
                                                         #{index + 1}
                                                     </div>
@@ -797,7 +846,11 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                                 className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 shadow-xl"
                                             >
                                                 <div className="relative">
-                                                    <img src={video.thumbnail} alt={video.title} className="w-full h-48 object-cover" />
+                                                    <img
+                                                        src={video.thumbnail}
+                                                        alt={video.title}
+                                                        className="w-full h-48 object-cover"
+                                                    />
                                                     <div className="absolute top-2 left-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
                                                         #{index + 1}
                                                     </div>
@@ -842,9 +895,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                                         )}
                                         <h2 className="text-4xl font-bold mb-8 text-center">Squigly's God Mode Analysis</h2>
                                         <div className="bg-gray-800/70 rounded-3xl p-10 border border-purple-500 shadow-2xl">
-                      <pre className="whitespace-pre-wrap text-lg leading-relaxed text-gray-100">
-                        {analysisData.analysis}
-                      </pre>
+                                            <pre className="whitespace-pre-wrap text-lg leading-relaxed text-gray-100">
+                                                {analysisData.analysis}
+                                            </pre>
                                         </div>
                                     </div>
 

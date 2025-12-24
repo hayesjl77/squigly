@@ -1,6 +1,7 @@
 // src/app/api/youtube/analytics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';  // ← Add import
 
 interface AnalyticsResponse {
     totalsForAllResults?: {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
         const oauth2Client = new google.auth.OAuth2(
             process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET,
-            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/youtube/callback`
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/ytcallback`  // ← Fixed to ytcallback
         );
 
         oauth2Client.setCredentials({
@@ -32,10 +33,26 @@ export async function POST(request: NextRequest) {
             refresh_token: refresh_token || undefined,
         });
 
-        try {
-            await oauth2Client.getAccessToken();
-        } catch (e) {
-            console.warn('Token refresh warning:', e);
+        const oldAccessToken = oauth2Client.credentials.access_token;  // ← Track old for comparison
+
+        await oauth2Client.getAccessToken();
+
+        const newAccessToken = oauth2Client.credentials.access_token;
+
+        if (newAccessToken && newAccessToken !== oldAccessToken) {
+            const newExpiryDate = oauth2Client.credentials.expiry_date
+                ? new Date(oauth2Client.credentials.expiry_date).toISOString()
+                : new Date(Date.now() + 3600 * 1000).toISOString();  // Fallback 1hr
+
+            await supabaseAdmin
+                .from('youtube_tokens')
+                .update({
+                    access_token: newAccessToken,
+                    expiry_date: newExpiryDate,
+                })
+                .eq('channel_id', channel_id);
+
+            console.log('Token refreshed and updated in DB:', { channel_id, newExpiryDate });  // ← Debug log
         }
 
         const analytics = google.youtubeAnalytics('v2');
@@ -51,6 +68,8 @@ export async function POST(request: NextRequest) {
             metrics: 'views,estimatedMinutesWatched',
         });
 
+        console.log('Analytics query response:', response.data);  // ← Debug log
+
         // Safe type assertion for response.data
         const data = response.data as AnalyticsResponse;
 
@@ -58,7 +77,7 @@ export async function POST(request: NextRequest) {
 
         const summary = {
             totalViews: Number(totals.views || 0),
-            avgViewDuration: Number(totals.estimatedMinutesWatched || 0) * 60, // minutes to seconds
+            avgViewDuration: totals.views ? (Number(totals.estimatedMinutesWatched || 0) / Number(totals.views)) * 60 : 0,  // ← Actual avg seconds per view
         };
 
         return NextResponse.json(summary);
