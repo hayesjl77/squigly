@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     });
   } catch (err) {
     console.error('Error in handler:', err);
-    return NextResponse.json({ error: 'Handler failed', details: err.message }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Handler failed', details: errorMessage }, { status: 500 });
   }
 }
