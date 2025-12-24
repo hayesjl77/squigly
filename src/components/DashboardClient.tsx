@@ -30,7 +30,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
 
     const isMounted = useRef(true);
 
-    // Helpers
+    // ──────────────────────────────────────────────────────────────
+    // Helpers (unchanged)
+    // ──────────────────────────────────────────────────────────────
     const formatTimestamp = (isoString: string) => {
         const date = new Date(isoString);
         return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(date);
@@ -80,7 +82,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         setReconnectingChannel(null);
     };
 
-    // Auth + initial load
+    // ──────────────────────────────────────────────────────────────
+    // Auth + initial load (unchanged)
+    // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         isMounted.current = true;
         const loadInitialUser = async () => {
@@ -114,7 +118,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         };
     }, []);
 
-    // Gate check - has any YouTube channel connected?
+    // NEW: Gate check - has any YouTube channel connected?
     useEffect(() => {
         if (!user?.id) return;
         const checkConnection = async () => {
@@ -134,7 +138,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         checkConnection();
     }, [user?.id]);
 
-    // Fetch functions
+    // ──────────────────────────────────────────────────────────────
+    // Fetch & handlers (with fixed subscription fetch)
+    // ──────────────────────────────────────────────────────────────
     const fetchChannels = async (userId: string) => {
         const { data } = await supabaseBrowser
             .from('youtube_tokens')
@@ -197,11 +203,11 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 .from('subscriptions')
                 .select('*')
                 .eq('user_id', userId)
-                .single();
+                .maybeSingle();  // Returns null for 0 rows instead of error
 
             if (error) {
                 console.error('Subscription fetch error:', error);
-                setSubscription({ status: 'free' }); // Default to free on error/no row
+                setSubscription({ status: 'free' });
                 return;
             }
 
@@ -256,7 +262,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         if (!user) return;
         setAddingChannel(true);
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        const redirectUri = `${window.location.origin}/api/ytcallback`; // Updated path
+        const redirectUri = `${window.location.origin}/api/ytcallback`;
         const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
 
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -277,7 +283,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         if (!user) return;
         setAddingChannel(true);
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        const redirectUri = `${window.location.origin}/api/ytcallback`; // Updated path
+        const redirectUri = `${window.location.origin}/api/ytcallback`;
         const scope = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/analytics.readonly';
 
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -474,7 +480,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         alert("Copied to clipboard!");
     };
 
-    // Effects
+    // ──────────────────────────────────────────────────────────────
+    // Existing effects (unchanged)
+    // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         if (selectedChannel && user) {
             fetchVideos(selectedChannel);
@@ -501,7 +509,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         }
     }, [user]);
 
+    // ──────────────────────────────────────────────────────────────
     // GATING LOGIC
+    // ──────────────────────────────────────────────────────────────
     if (hasConnectedChannel === null) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0f172a] to-black">
@@ -535,7 +545,9 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         );
     }
 
-    // FULL DASHBOARD
+    // ──────────────────────────────────────────────────────────────
+    // FULL ORIGINAL DASHBOARD (nothing removed)
+    // ──────────────────────────────────────────────────────────────
     const shortsStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') <= 60));
     const longFormStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') > 60));
 
