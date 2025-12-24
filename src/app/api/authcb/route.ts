@@ -11,13 +11,17 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code');
 
   if (code) {
-    const cookieStore = cookies();
+    // Await the cookies Promise
+    const cookieStore = await cookies();  // ← Add await here!
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           cookies: {
-            getAll() { return cookieStore.getAll(); },
+            getAll() {
+              return cookieStore.getAll();  // Now safe, since cookieStore is resolved
+            },
             setAll(cookiesToSet) {
               cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
             },
