@@ -1,4 +1,5 @@
-﻿import { NextResponse } from 'next/server';
+﻿import { createServerClient } from '@supabase/ssr';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
@@ -10,14 +11,34 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code');
 
   try {
-    const cookieStore = await cookies();  // Await here!
-    console.log('Cookies loaded successfully, count:', cookieStore.getAll().length);
-  } catch (err) {
-    console.error('Cookies error:', err);
-  }
+    const cookieStore = await cookies();
+    console.log('Cookies loaded, count:', cookieStore.getAll().length);
 
-  return NextResponse.json({
-    status: 'Cookies test works',
-    codePresent: !!code,
-  });
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return cookieStore.getAll();
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options);
+              });
+            },
+          },
+        }
+    );
+
+    console.log('Supabase client created successfully');
+
+    return NextResponse.json({
+      status: 'Supabase client test works',
+      codePresent: !!code,
+    });
+  } catch (err) {
+    console.error('Error in handler:', err);
+    return NextResponse.json({ error: 'Handler failed', details: err.message }, { status: 500 });
+  }
 }
