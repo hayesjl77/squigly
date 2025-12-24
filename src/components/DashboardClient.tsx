@@ -30,9 +30,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
 
     const isMounted = useRef(true);
 
-    // ──────────────────────────────────────────────────────────────
     // Helpers (unchanged)
-    // ──────────────────────────────────────────────────────────────
     const formatTimestamp = (isoString: string) => {
         const date = new Date(isoString);
         return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(date);
@@ -82,9 +80,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         setReconnectingChannel(null);
     };
 
-    // ──────────────────────────────────────────────────────────────
-    // Auth + initial load (unchanged)
-    // ──────────────────────────────────────────────────────────────
+    // Auth + initial load
     useEffect(() => {
         isMounted.current = true;
         const loadInitialUser = async () => {
@@ -118,7 +114,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         };
     }, []);
 
-    // NEW: Gate check - has any YouTube channel connected?
+    // Gate check - has any YouTube channel connected?
     useEffect(() => {
         if (!user?.id) return;
         const checkConnection = async () => {
@@ -138,9 +134,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         checkConnection();
     }, [user?.id]);
 
-    // ──────────────────────────────────────────────────────────────
-    // Fetch & handlers (with fixed subscription fetch)
-    // ──────────────────────────────────────────────────────────────
+    // Fetch functions (with debug logging)
     const fetchChannels = async (userId: string) => {
         const { data } = await supabaseBrowser
             .from('youtube_tokens')
@@ -168,15 +162,26 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
     };
 
     const fetchVideos = async (channelId: string) => {
-        const res = await fetch('/api/youtube/videos', {
-            method: 'POST',
-            body: JSON.stringify({ channel_id: channelId }),
-        });
-        const data = await res.json();
-        const items = data.items || [];
-        setVideos(items);
-        const fingerprint = getVideoFingerprint(items);
-        setCurrentVideoFingerprint(fingerprint);
+        try {
+            const res = await fetch('/api/youtube/videos', {
+                method: 'POST',
+                body: JSON.stringify({ channel_id: channelId }),
+            });
+            const data = await res.json();
+            console.log('Videos fetch response:', {
+                ok: res.ok,
+                status: res.status,
+                itemsLength: data.items?.length || 0,
+                error: data.error
+            });
+            const items = data.items || [];
+            setVideos(items);
+            const fingerprint = getVideoFingerprint(items);
+            setCurrentVideoFingerprint(fingerprint);
+        } catch (err) {
+            console.error('Videos fetch error:', err);
+            setVideos([]);
+        }
     };
 
     const fetchSavedAnalysis = async (channelId: string) => {
@@ -227,7 +232,10 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
                 .eq('user_id', user?.id)
                 .single();
 
-            if (!tokenData?.access_token) return;
+            if (!tokenData?.access_token) {
+                console.log('No access_token for analytics');
+                return;
+            }
 
             const res = await fetch('/api/youtube/analytics', {
                 method: 'POST',
@@ -240,6 +248,12 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
             });
 
             const data = await res.json();
+            console.log('Analytics fetch response:', {
+                ok: res.ok,
+                status: res.status,
+                dataKeys: Object.keys(data),
+                error: data.error
+            });
 
             if (res.ok) {
                 setAnalyticsSummary(data);
@@ -480,9 +494,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         alert("Copied to clipboard!");
     };
 
-    // ──────────────────────────────────────────────────────────────
-    // Existing effects (unchanged)
-    // ──────────────────────────────────────────────────────────────
+    // Effects
     useEffect(() => {
         if (selectedChannel && user) {
             fetchVideos(selectedChannel);
@@ -509,9 +521,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         }
     }, [user]);
 
-    // ──────────────────────────────────────────────────────────────
     // GATING LOGIC
-    // ──────────────────────────────────────────────────────────────
     if (hasConnectedChannel === null) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0f172a] to-black">
@@ -545,9 +555,7 @@ export default function DashboardClient({ initialUserId }: DashboardClientProps)
         );
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // FULL ORIGINAL DASHBOARD (nothing removed)
-    // ──────────────────────────────────────────────────────────────
+    // FULL DASHBOARD
     const shortsStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') <= 60));
     const longFormStats = calculateStats(videos.filter(v => parseDuration(v.duration || 'PT0S') > 60));
 
