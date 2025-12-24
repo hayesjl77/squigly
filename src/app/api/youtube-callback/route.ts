@@ -43,7 +43,7 @@ export async function GET(request: Request) {
             code,
             client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-            redirect_uri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/youtube-callback`,,  // ← IMPORTANT: Update to your FINAL flattened path
+            redirect_uri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/youtube-callback`,  // ← IMPORTANT: Update to your FINAL flattened path
             grant_type: 'authorization_code',
         });
 
