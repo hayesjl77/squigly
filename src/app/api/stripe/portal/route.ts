@@ -9,17 +9,20 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,  // Service role for full access
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
         {
             cookies: {
-                get(name) {
-                    return cookieStore.get(name)?.value;
+                async get(name) {
+                    const store = await cookieStore;  // Await the promise
+                    return store.get(name)?.value;
                 },
-                set(name, value, options) {
-                    cookieStore.set({ name, value, ...options });
+                async set(name, value, options) {
+                    const store = await cookieStore;
+                    store.set({ name, value, ...options });
                 },
-                remove(name, options) {
-                    cookieStore.delete({ name, ...options });
+                async remove(name, options) {
+                    const store = await cookieStore;
+                    store.delete({ name, ...options });
                 },
             },
         }
