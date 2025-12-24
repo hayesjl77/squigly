@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// Create the Stripe client instance (this is what was missing)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-12-15.clover',  // Match your other Stripe code
+});
+
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
@@ -30,12 +35,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        // Upsert subscription row - using existing 'status' column, no 'tier'
+        // Upsert subscription row - using existing 'status' column
         const { error } = await supabaseAdmin
             .from('subscriptions')
             .upsert({
                 user_id: userId,
-                status: 'active',  // Sets to active on successful payment
+                status: 'active',
                 stripe_customer_id: customerId,
                 stripe_subscription_id: subscriptionId,
                 updated_at: new Date().toISOString(),
